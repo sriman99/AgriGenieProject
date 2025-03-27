@@ -1,36 +1,27 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "sonner";
-import { AuthProvider } from "@/lib/auth-context";
-import { Navigation } from "@/components/navigation";
+import './globals.css';
+import { Inter } from 'next/font/google';
+import { Toaster } from '@/components/ui/toaster';
+import { AuthProvider } from '@/lib/auth-context';
+import { Navbar } from '@/components/layout/navbar';
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ['latin'] });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "AgriGenie - AI-Powered Smart Farming",
-  description: "AI-driven insights and marketplace for modern farming",
+export const metadata = {
+  title: 'AgriGenie - AI-Powered Smart Farming Platform',
+  description: 'AgriGenie is an AI-powered smart farming and direct marketplace application helping farmers with AI-driven insights, analytics, and a direct marketplace to maximize yield and profit.',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={inter.className}>
         <AuthProvider>
-          <Navigation />
-          <main>{children}</main>
+          <Navbar />
+          {children}
           <Toaster />
         </AuthProvider>
       </body>

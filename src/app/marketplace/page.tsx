@@ -1,242 +1,156 @@
 'use client';
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/lib/auth-context";
-import { createClient } from "@/lib/supabase";
-import { api } from "@/lib/utils";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { agriToasts } from "@/components/ui/toast";
-
-interface CropListing {
-  id: string;
-  farmer_id: string;
-  crop_name: string;
-  quantity: number;
-  price_per_unit: number;
-  unit: string;
-  description: string | null;
-  available: boolean;
-  created_at: string;
-  farmer: {
-    full_name: string;
-  };
-}
-
-interface PurchaseDialogProps {
-  listing: CropListing;
-  onPurchase: (quantity: number) => Promise<void>;
-}
-
-function PurchaseDialog({ listing, onPurchase }: PurchaseDialogProps) {
-  const [quantity, setQuantity] = useState(1);
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    try {
-      await onPurchase(quantity);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Purchase {listing.crop_name}</DialogTitle>
-        <DialogDescription>
-          Enter the quantity you want to purchase
-        </DialogDescription>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <p className="text-sm text-gray-500">
-            Available: {listing.quantity} {listing.unit}
-          </p>
-          <p className="text-sm text-gray-500">
-            Price: ₹{listing.price_per_unit}/{listing.unit}
-          </p>
-        </div>
-        <Input
-          type="number"
-          min={1}
-          max={listing.quantity}
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          required
-        />
-        <div>
-          <p className="font-semibold">
-            Total Price: ₹{(quantity * listing.price_per_unit).toFixed(2)}
-          </p>
-        </div>
-        <Button type="submit" className="w-full" disabled={isProcessing}>
-          {isProcessing ? "Processing..." : "Confirm Purchase"}
-        </Button>
-      </form>
-    </DialogContent>
-  );
-}
+import { useState, useEffect } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
+import { Navbar } from '@/components/dashboard/navbar';
+import { Button } from '@/components/ui/button';
+import { CropListings } from '@/components/marketplace/listings';
+import { Input } from '@/components/ui/input';
+import { Toaster } from '@/components/ui/toaster';
+import { toast } from 'sonner';
+import { Search, Filter, X, ShoppingCart } from 'lucide-react';
 
 export default function MarketplacePage() {
-  const { user, profile, loading } = useAuth();
   const router = useRouter();
-  const [listings, setListings] = useState<CropListing[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
+  const { user, profile } = useAuth();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    minPrice: '',
+    maxPrice: '',
+    cropType: ''
+  });
 
+  // Redirect to login if not authenticated
   useEffect(() => {
-    if (!loading && !user) {
+    if (!user) {
       router.push('/auth');
     }
-  }, [user, loading, router]);
+  }, [user, router]);
 
-  useEffect(() => {
-    const fetchListings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('crop_listings')
-          .select('*, farmer:profiles(full_name)')
-          .eq('available', true)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setListings(data);
-      } catch (error) {
-        agriToasts.showToast({
-          message: "Failed to fetch listings",
-          type: "error"
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (user) {
-      fetchListings();
-    }
-  }, [user]);
-
-  const handlePurchase = async (listingId: string, quantity: number) => {
-    try {
-      const listing = listings.find(l => l.id === listingId);
-      if (!listing) return;
-
-      const { error } = await supabase.from('orders').insert({
-        buyer_id: user?.id,
-        crop_listing_id: listingId,
-        quantity,
-        total_price: quantity * listing.price_per_unit,
-        status: 'pending'
-      });
-
-      if (error) throw error;
-
-      agriToasts.showToast({
-        message: `Successfully ordered ${quantity} ${listing.unit} of ${listing.crop_name}`,
-        type: "success"
-      });
-
-      // Refresh listings
-      router.refresh();
-    } catch (error) {
-      agriToasts.showToast({
-        message: "Failed to place order",
-        type: "error"
-      });
-    }
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
   };
 
-  if (loading || isLoading) {
-    return <div>Loading...</div>;
-  }
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      minPrice: '',
+      maxPrice: '',
+      cropType: ''
+    });
+  };
+
+  const isFarmer = profile?.user_type === 'farmer';
 
   return (
-    <main className="min-h-screen p-4 bg-gray-50">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold">Marketplace</h1>
-          {profile?.user_type === 'farmer' && (
-            <Button onClick={() => router.push('/marketplace/new')}>
-              List New Crop
-            </Button>
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main className="container py-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Marketplace</h1>
+            <p className="text-gray-600">Browse and purchase crops directly from farmers</p>
+          </div>
+          {isFarmer && (
+            <Link href="/marketplace/new" className="mt-4 md:mt-0">
+              <Button variant="default">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Create Listing
+              </Button>
+            </Link>
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {listings.map((listing) => (
-            <Card key={listing.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <CardTitle>{listing.crop_name}</CardTitle>
-                <CardDescription>
-                  Listed by {listing.farmer.full_name}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  <p>
-                    Price: ₹{listing.price_per_unit}/{listing.unit}
-                  </p>
-                  <p>
-                    Available: {listing.quantity} {listing.unit}
-                  </p>
-                  {listing.description && (
-                    <p className="text-sm text-gray-500">{listing.description}</p>
-                  )}
-                  {profile?.user_type === 'buyer' && (
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button className="w-full">Purchase</Button>
-                      </DialogTrigger>
-                      <PurchaseDialog
-                        listing={listing}
-                        onPurchase={(quantity) =>
-                          handlePurchase(listing.id, quantity)
-                        }
-                      />
-                    </Dialog>
-                  )}
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search crops, farmers..."
+                value={searchTerm}
+                onChange={handleSearchChange}
+                className="pl-10"
+              />
+            </div>
+            <Button 
+              variant="outline" 
+              onClick={() => setFilterOpen(!filterOpen)}
+              className="md:w-auto w-full"
+            >
+              <Filter className="mr-2 h-4 w-4" />
+              {filterOpen ? 'Hide Filters' : 'Show Filters'}
+            </Button>
+          </div>
+
+          {filterOpen && (
+            <div className="mt-4 p-4 border rounded-md bg-white">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="font-medium">Filter Options</h3>
+                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                  <X className="mr-2 h-4 w-4" />
+                  Reset
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Price (₹)</label>
+                  <Input
+                    type="number"
+                    name="minPrice"
+                    placeholder="Min Price"
+                    value={filters.minPrice}
+                    onChange={handleFilterChange}
+                  />
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Price (₹)</label>
+                  <Input
+                    type="number"
+                    name="maxPrice"
+                    placeholder="Max Price"
+                    value={filters.maxPrice}
+                    onChange={handleFilterChange}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Type</label>
+                  <select
+                    name="cropType"
+                    value={filters.cropType}
+                    onChange={handleFilterChange}
+                    className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">All Crops</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Wheat">Wheat</option>
+                    <option value="Cotton">Cotton</option>
+                    <option value="Sugarcane">Sugarcane</option>
+                    <option value="Corn">Corn</option>
+                    <option value="Soybeans">Soybeans</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {listings.length === 0 && !isLoading && (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-gray-500">No crops currently listed.</p>
-              {profile?.user_type === 'farmer' && (
-                <Button
-                  variant="outline"
-                  className="mt-4"
-                  onClick={() => router.push('/marketplace/new')}
-                >
-                  List Your First Crop
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    </main>
+        <CropListings 
+          searchTerm={searchTerm}
+          filters={filters}
+        />
+      </main>
+      <Toaster />
+    </div>
   );
 }

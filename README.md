@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AgriGenie - AI-Powered Agriculture Platform
+
+AgriGenie is a comprehensive digital platform designed to connect farmers and buyers while providing AI-powered insights for agricultural decision-making.
+
+## Key Features
+
+- **Role-based Dashboards**: Separate dashboards for farmers and buyers with tailored features
+- **Marketplace**: Browse, list, and purchase crops directly on the platform
+- **AI Assistant**: Gemini AI-powered chatbot that provides farming advice, market insights, and crop disease diagnosis
+- **Weather Intelligence**: Real-time weather data and forecasts with crop suitability recommendations
+- **Market Price Analytics**: Track crop prices, trends, and forecasts to optimize buying/selling decisions
+- **User Authentication**: Secure login system with role-based access control
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, TypeScript, Tailwind CSS, shadcn/ui
+- **Backend**: Next.js API routes, Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **APIs**: 
+  - OpenWeather API for weather data
+  - Google Gemini API for AI features
+  - Market price data (simulated)
 
 ## Getting Started
 
-First, run the development server:
+1. **Clone the repository**
+   ```
+   git clone https://github.com/yourusername/agrigenie.git
+   cd agrigenie
+   ```
+
+2. **Install dependencies**
+   ```
+   npm install
+   ```
+
+3. **Set up environment variables**
+   Create a `.env.local` file in the root directory with the following variables:
+   ```
+   # Supabase Configuration
+   NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
+
+   # External API Keys
+   NEXT_PUBLIC_OPENWEATHER_API_KEY=your-openweather-api-key
+   NEXT_PUBLIC_GOOGLE_API_KEY=your-google-api-key  # For Gemini AI
+
+   # App Configuration
+   NEXT_PUBLIC_APP_URL=http://localhost:3000
+   ```
+
+4. **Run the development server**
+   ```
+   npm run dev
+   ```
+
+5. **Open your browser and navigate to**
+   ```
+   http://localhost:3000
+   ```
+
+## Database Schema
+
+The application uses Supabase with the following main tables:
+
+- **profiles**: User profile information with role (farmer/buyer)
+- **marketplace_listings**: Crop listings posted by farmers
+- **marketplace_orders**: Orders placed by buyers
+
+## API Integration
+
+### Weather API
+
+The application integrates with OpenWeather API to provide:
+- Current weather conditions
+- 5-day forecasts
+- Weather-based crop suitability analysis
+
+### Gemini AI
+
+Google's Gemini AI powers several features:
+- Conversational farming assistant
+- Crop recommendations based on conditions
+- Market trend analysis
+- Disease diagnosis from descriptions
+
+## Deployment
+
+The application can be deployed to Vercel or any other platform that supports Next.js applications.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT](LICENSE)

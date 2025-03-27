@@ -1,93 +1,167 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from ..models import CropListing, Order
 from ..dependencies import get_supabase, get_current_user
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
+from datetime import datetime
+from uuid import UUID
 
 router = APIRouter(prefix="/marketplace", tags=["marketplace"])
 
-@router.post("/crops", response_model=CropListing)
+class CropListing(BaseModel):
+    id: Optional[str] = None
+    farmer_id: str
+    crop_name: str
+    quantity: float
+    price_per_unit: float
+    unit: str
+    description: Optional[str] = None
+    available: bool = True
+    created_at: Optional[datetime] = None
+
+class Order(BaseModel):
+    id: Optional[str] = None
+    buyer_id: str
+    crop_listing_id: str
+    quantity: float
+    total_price: float
+    status: str = "pending"
+    created_at: Optional[datetime] = None
+
+@router.post("/listings", response_model=CropListing)
 async def create_crop_listing(
     listing: CropListing,
-    current_user = Depends(get_current_user),
+    user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
     try:
-        # Ensure user is a farmer
-        user_data = supabase.table("profiles").select("user_type").eq("id", current_user.id).single().execute()
-        if user_data.data["user_type"] != "farmer":
+        # Verify user is a farmer
+        profile = await supabase.table("profiles").select("*").eq("id", user.id).single().execute()
+        if profile.data["user_type"] != "farmer":
             raise HTTPException(status_code=403, detail="Only farmers can create listings")
 
-        listing_data = listing.model_dump()
-        listing_data["farmer_id"] = current_user.id
-        
-        response = supabase.table("crop_listings").insert(listing_data).execute()
+        # Create listing
+        listing_data = listing.dict(exclude={"id", "farmer_id", "created_at"})
+        listing_data["farmer_id"] = user.id
+
+        response = await supabase.table("crop_listings").insert(listing_data).execute()
         return response.data[0]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/crops", response_model=List[CropListing])
-async def get_crop_listings(supabase = Depends(get_supabase)):
+@router.get("/listings", response_model=List[CropListing])
+async def get_crop_listings(
+    available_only: bool = Query(True, description="Filter only available listings"),
+    crop_name: Optional[str] = Query(None, description="Filter by crop name"),
+    user = Depends(get_current_user),
+    supabase = Depends(get_supabase)
+):
     try:
-        response = supabase.table("crop_listings").select("*").eq("available", True).execute()
+        query = supabase.table("crop_listings").select("*")
+        
+        if available_only:
+            query = query.eq("available", True)
+        
+        if crop_name:
+            query = query.eq("crop_name", crop_name)
+        
+        response = await query.execute()
         return response.data
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/orders", response_model=Order)
 async def create_order(
     order: Order,
-    current_user = Depends(get_current_user),
+    user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
     try:
-        # Ensure user is a buyer
-        user_data = supabase.table("profiles").select("user_type").eq("id", current_user.id).single().execute()
-        if user_data.data["user_type"] != "buyer":
-            raise HTTPException(status_code=403, detail="Only buyers can create orders")
+        # Verify user is a buyer
+        profile = await supabase.table("profiles").select("*").eq("id", user.id).single().execute()
+        if profile.data["user_type"] != "buyer":
+            raise HTTPException(status_code=403, detail="Only buyers can place orders")
 
-        order_data = order.model_dump()
-        order_data["buyer_id"] = current_user.id
-        
-        # Check if crop is available and update quantity
-        crop = supabase.table("crop_listings").select("*").eq("id", order.crop_listing_id).single().execute()
-        if not crop.data["available"] or crop.data["quantity"] < order.quantity:
-            raise HTTPException(status_code=400, detail="Crop not available in requested quantity")
+        # Get listing details
+        listing = await supabase.table("crop_listings").select("*").eq("id", order.crop_listing_id).single().execute()
+        if not listing.data:
+            raise HTTPException(status_code=404, detail="Listing not found")
 
-        # Create order and update crop listing
-        response = supabase.table("orders").insert(order_data).execute()
+        if not listing.data["available"]:
+            raise HTTPException(status_code=400, detail="This crop is no longer available")
+
+        if order.quantity > listing.data["quantity"]:
+            raise HTTPException(status_code=400, detail="Order quantity exceeds available quantity")
+
+        # Calculate total price
+        total_price = order.quantity * listing.data["price_per_unit"]
+
+        # Create order
+        order_data = {
+            "buyer_id": user.id,
+            "crop_listing_id": order.crop_listing_id,
+            "quantity": order.quantity,
+            "total_price": total_price,
+            "status": "pending"
+        }
+
+        response = await supabase.table("orders").insert(order_data).execute()
         
-        # Update crop listing quantity
-        new_quantity = crop.data["quantity"] - order.quantity
-        supabase.table("crop_listings").update({
-            "quantity": new_quantity,
-            "available": new_quantity > 0
-        }).eq("id", order.crop_listing_id).execute()
+        # Update listing quantity and availability
+        remaining_quantity = listing.data["quantity"] - order.quantity
+        update_data = {
+            "quantity": remaining_quantity,
+            "available": remaining_quantity > 0
+        }
+        
+        await supabase.table("crop_listings").update(update_data).eq("id", order.crop_listing_id).execute()
 
         return response.data[0]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/orders/farmer", response_model=List[Order])
-async def get_farmer_orders(
-    current_user = Depends(get_current_user),
+@router.get("/orders", response_model=List[Order])
+async def get_orders(
+    user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
     try:
-        # Get all orders for crops listed by this farmer
-        response = supabase.table("orders").select(
-            "*, crop_listings!inner(*)"
-        ).eq("crop_listings.farmer_id", current_user.id).execute()
+        # Get user type
+        profile = await supabase.table("profiles").select("*").eq("id", user.id).single().execute()
+        
+        if profile.data["user_type"] == "buyer":
+            # Buyers see their orders
+            query = supabase.table("orders").select("*").eq("buyer_id", user.id)
+        elif profile.data["user_type"] == "farmer":
+            # Farmers see orders for their listings
+            query = supabase.table("orders").select("*").eq("farmer_id", user.id)
+        else:
+            raise HTTPException(status_code=403, detail="Unauthorized")
+        
+        response = await query.execute()
         return response.data
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/orders/buyer", response_model=List[Order])
-async def get_buyer_orders(
-    current_user = Depends(get_current_user),
+@router.put("/orders/{order_id}")
+async def update_order_status(
+    order_id: str,
+    status: str,
+    user = Depends(get_current_user),
     supabase = Depends(get_supabase)
 ):
     try:
-        response = supabase.table("orders").select("*").eq("buyer_id", current_user.id).execute()
-        return response.data
+        # Verify user is the farmer who owns the listing
+        order = await supabase.table("orders").select("*").eq("id", order_id).single().execute()
+        if not order.data:
+            raise HTTPException(status_code=404, detail="Order not found")
+
+        listing = await supabase.table("crop_listings").select("*").eq("id", order.data["crop_listing_id"]).single().execute()
+        if listing.data["farmer_id"] != user.id:
+            raise HTTPException(status_code=403, detail="Only the farmer can update order status")
+
+        # Update order status
+        response = await supabase.table("orders").update({"status": status}).eq("id", order_id).execute()
+        return response.data[0]
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

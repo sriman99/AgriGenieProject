@@ -34,9 +34,18 @@ export default function AuthPage() {
     
     try {
       if (isLogin) {
-        await signIn(formData.email, formData.password);
+        const userType = await signIn(formData.email, formData.password);
         toast.success("Successfully logged in!");
-        router.push("/dashboard");
+        
+        // Redirect based on user type
+        if (userType === 'farmer') {
+          router.push("/dashboard/farmer");
+        } else if (userType === 'buyer') {
+          router.push("/dashboard/buyer");
+        } else {
+          // Default fallback
+          router.push("/dashboard");
+        }
       } else {
         // Validate input before attempting signup
         if (!formData.email.includes('@')) {

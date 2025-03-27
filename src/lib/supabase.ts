@@ -51,7 +51,7 @@ export type Database = {
           farmer_id: string
           crop_name: string
           image_url: string
-          detection_result: Json
+          detection_result: JSON
           created_at: string
         }
       }
@@ -69,7 +69,7 @@ export type Database = {
           id: string
           user_id: string
           insight_type: 'price_prediction' | 'weather_alert' | 'disease_alert'
-          content: Json
+          content: JSON
           created_at: string
         }
       }

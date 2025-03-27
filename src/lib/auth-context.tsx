@@ -11,8 +11,8 @@ type AuthContextType = {
   user: User | null
   profile: Profile | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, fullName: string, userType: string) => Promise<void>
+  signIn: (email: string, password: string) => Promise<string | undefined>
+  signUp: (email: string, password: string, fullName: string, userType: string) => Promise<User | void>
   signOut: () => Promise<void>
 }
 
@@ -32,14 +32,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getUser = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser()
+        console.log("Auth-context: getUser() user:", user?.id);
         setUser(user)
         if (user) {
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single()
-          setProfile(profile)
+            
+          if (profileError) {
+            console.error("Error fetching profile:", profileError.message);
+            // Check if the profile doesn't exist
+            if (profileError.code === 'PGRST116') {
+              console.log("Profile doesn't exist, creating one from user metadata");
+              // Try to create profile from auth metadata as fallback
+              const metadata = user.user_metadata;
+              if (metadata && metadata.full_name && metadata.user_type) {
+                const { error: insertError } = await supabase
+                  .from('profiles')
+                  .insert([{
+                    id: user.id,
+                    email: user.email,
+                    full_name: metadata.full_name,
+                    user_type: metadata.user_type
+                  }]);
+                  
+                if (insertError) {
+                  console.error("Failed to create profile from metadata:", insertError);
+                } else {
+                  // Fetch the profile again after creating it
+                  const { data: newProfile } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+                  setProfile(newProfile);
+                  console.log("Created and set profile from metadata:", newProfile);
+                }
+              }
+            }
+          } else {
+            setProfile(profile);
+            console.log("Auth-context: profile loaded:", profile?.user_type);
+          }
         }
       } catch (error) {
         console.error('Error fetching user:', error)
@@ -50,14 +86,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     getUser()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state change event:", event);
       setUser(session?.user ?? null)
       if (session?.user) {
-        const { data: profile } = await supabase
+        const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single()
-        setProfile(profile)
+          
+        if (profileError) {
+          console.error("Error fetching profile on auth change:", profileError.message);
+          // Try to create profile from auth metadata if it doesn't exist
+          if (profileError.code === 'PGRST116') {
+            console.log("Profile doesn't exist on auth change, creating from metadata");
+            const metadata = session.user.user_metadata;
+            if (metadata && metadata.full_name && metadata.user_type) {
+              const { error: insertError } = await supabase
+                .from('profiles')
+                .insert([{
+                  id: session.user.id,
+                  email: session.user.email,
+                  full_name: metadata.full_name,
+                  user_type: metadata.user_type
+                }]);
+                
+              if (insertError) {
+                console.error("Failed to create profile from metadata on auth change:", insertError);
+              } else {
+                // Fetch the profile again after creating it
+                const { data: newProfile } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', session.user.id)
+                  .single();
+                setProfile(newProfile);
+                console.log("Created and set profile from metadata on auth change:", newProfile);
+              }
+            }
+          }
+        } else {
+          setProfile(profile);
+          console.log("Auth-context: profile loaded on auth change:", profile?.user_type);
+        }
       } else {
         setProfile(null)
       }
@@ -70,8 +141,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+    
+    // After successful sign-in, get user profile to determine user type
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', data.user.id)
+        .single()
+      
+      // Return user type for redirection
+      return profile?.user_type
+    }
   }
 
   const signUp = async (email: string, password: string, fullName: string, userType: string) => {
@@ -108,6 +191,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!user) throw new Error('Failed to create user')
+      
+      console.log("User created successfully:", user.id);
+      console.log("Creating profile with user_type:", userType);
 
       // Step 2: Create profile
       const { error: profileError } = await supabase
@@ -125,6 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.error('Profile creation error:', profileError)
         throw new Error('Failed to create user profile')
       }
+      
+      console.log("Profile created successfully");
 
       toast.success('Account created successfully! Please check your email for verification.')
       return user
@@ -149,7 +237,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn,
     signUp,
-    signOut
+    signOut,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
