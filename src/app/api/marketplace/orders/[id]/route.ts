@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { getAuthUser } from '@/lib/auth-helpers';
 
 // GET /api/marketplace/orders/[id] - Get a specific order
 export async function GET(
@@ -7,58 +8,67 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
-    
-    // Create supabase client and get auth user
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    // Get the authenticated user
+    const user = await getAuthUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
-    
-    // Get user profile to determine user type
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_type')
-      .eq('id', user.id)
-      .single();
-    
-    if (!profile) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
-    }
-    
-    // Get the order
-    const { data: order, error: orderError } = await supabase
+
+    // Initialize Supabase client
+    const supabase = createClient();
+
+    // Get the order with related data
+    const { data, error } = await supabase
       .from('orders')
       .select(`
         *,
         crop_listing:crop_listings(
-          *,
-          farmer:profiles!crop_listings_farmer_id_fkey(full_name)
+          id,
+          crop_name,
+          quantity,
+          price_per_unit,
+          unit,
+          farmer_id,
+          farmer:profiles(
+            full_name
+          )
         ),
-        buyer:profiles!orders_buyer_id_fkey(full_name)
+        buyer:profiles(
+          full_name
+        )
       `)
-      .eq('id', id)
+      .eq('id', params.id)
       .single();
-    
-    if (orderError || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+
+    if (error) {
+      console.error('Error fetching order:', error);
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
     }
-    
-    // Check if user has permission to view this order
-    if (profile.user_type === 'buyer' && order.buyer_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized to view this order' }, { status: 403 });
+
+    // Check if user is authorized to view this order
+    const isBuyer = data.buyer_id === user.id;
+    const isFarmer = data.crop_listing.farmer_id === user.id;
+
+    if (!isBuyer && !isFarmer) {
+      return NextResponse.json(
+        { error: 'You are not authorized to view this order' },
+        { status: 403 }
+      );
     }
-    
-    if (profile.user_type === 'farmer' && order.crop_listing.farmer_id !== user.id) {
-      return NextResponse.json({ error: 'Unauthorized to view this order' }, { status: 403 });
-    }
-    
-    return NextResponse.json(order);
-  } catch (error: any) {
-    console.error('Unexpected error in get order API:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error('Error in GET /api/marketplace/orders/[id]:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 }
 
@@ -68,74 +78,85 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const id = params.id;
-    const { status } = await request.json();
-    
-    // Create supabase client and get auth user
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
+    // Get the authenticated user
+    const user = await getAuthUser();
     if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
     }
-    
-    // Get user profile to determine user type
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_type')
-      .eq('id', user.id)
-      .single();
-    
-    if (!profile) {
-      return NextResponse.json({ error: 'User profile not found' }, { status: 404 });
+
+    // Parse request body
+    const { status } = await request.json();
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Status is required' },
+        { status: 400 }
+      );
     }
-    
-    // Check if the user is a farmer
-    if (profile.user_type !== 'farmer') {
-      return NextResponse.json({ error: 'Only farmers can update order status' }, { status: 403 });
+
+    // Validate status enum
+    const validStatuses = ['pending', 'accepted', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return NextResponse.json(
+        { error: 'Invalid status value' },
+        { status: 400 }
+      );
     }
-    
-    // Get the order
+
+    // Initialize Supabase client
+    const supabase = createClient();
+
+    // Get the order to verify ownership
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
-        *,
-        crop_listing:crop_listings(farmer_id)
+        id,
+        crop_listing_id,
+        crop_listing:crop_listings(
+          farmer_id
+        )
       `)
-      .eq('id', id)
+      .eq('id', params.id)
       .single();
-    
+
     if (orderError || !order) {
-      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Order not found' },
+        { status: 404 }
+      );
     }
-    
+
     // Verify the user is the farmer who owns the listing
     if (order.crop_listing.farmer_id !== user.id) {
-      return NextResponse.json({ error: 'Only the farmer who created the listing can update order status' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'You are not authorized to update this order' },
+        { status: 403 }
+      );
     }
-    
-    // Verify the status is valid
-    const validStatuses = ['pending', 'accepted', 'rejected', 'completed'];
-    if (!validStatuses.includes(status)) {
-      return NextResponse.json({ error: 'Invalid status value' }, { status: 400 });
-    }
-    
+
     // Update the order status
     const { data, error } = await supabase
       .from('orders')
       .update({ status })
-      .eq('id', id)
-      .select()
-      .single();
-    
+      .eq('id', params.id)
+      .select();
+
     if (error) {
-      console.error('Error updating order status:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('Error updating order:', error);
+      return NextResponse.json(
+        { error: 'Failed to update order' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json(data);
-  } catch (error: any) {
-    console.error('Unexpected error in update order API:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json(data[0]);
+  } catch (error) {
+    console.error('Error in PUT /api/marketplace/orders/[id]:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
   }
 } 

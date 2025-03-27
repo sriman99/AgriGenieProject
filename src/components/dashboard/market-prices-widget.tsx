@@ -201,7 +201,13 @@ export function MarketPricesWidget() {
           forecastPrices[forecastPrices.length - 1].price > historicalPrices[historicalPrices.length - 1].price
             ? 'an upward trend with potential for price increases in the coming week.'
             : 'a downward trend with possible price decreases in the coming week.'
-        }`
+        }`,
+        factors: [
+          `Weather conditions in major growing regions affecting ${cropName} production.`,
+          `Changes in supply and demand balance for ${cropName} in national markets.`,
+          `Seasonal patterns typical for ${cropName} during this time of year.`,
+          `Government policies and import/export regulations impacting ${cropName} prices.`
+        ]
       };
       
       setTrendData(trendData);
@@ -581,12 +587,16 @@ export function MarketPricesWidget() {
                   <div>
                     <h4 className="text-sm font-medium mb-2">Key Market Factors</h4>
                     <ul className="space-y-1">
-                      {trendData.factors.map((factor, index) => (
-                        <li key={index} className="text-sm flex items-start gap-2">
-                          <span className="text-muted-foreground">•</span>
-                          <span>{factor}</span>
-                        </li>
-                      ))}
+                      {trendData.factors && trendData.factors.length > 0 ? (
+                        trendData.factors.map((factor, index) => (
+                          <li key={index} className="text-sm flex items-start gap-2">
+                            <span className="text-muted-foreground">•</span>
+                            <span>{factor}</span>
+                          </li>
+                        ))
+                      ) : (
+                        <li className="text-sm text-muted-foreground">No specific market factors available</li>
+                      )}
                     </ul>
                   </div>
                   

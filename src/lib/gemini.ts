@@ -1,12 +1,42 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from '@google/generative-ai';
 
 // Initialize the Gemini API with your API key
-const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GOOGLE_API_KEY || '');
+
+// Safety settings to ensure appropriate responses
+const safetySettings = [
+  {
+    category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+  {
+    category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+    threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+  },
+];
 
 // Generate a text response from Gemini
 export async function generateText(prompt: string, context?: string): Promise<string> {
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+    // Use gemini-1.0-pro which is the free model
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      safetySettings,
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 2048,
+      }
+    });
     
     let fullPrompt = prompt;
     if (context) {
@@ -18,7 +48,10 @@ export async function generateText(prompt: string, context?: string): Promise<st
     return response.text();
   } catch (error) {
     console.error('Error generating text with Gemini:', error);
-    return 'Sorry, I encountered an error processing your request.';
+    if (error instanceof Error) {
+      return `Sorry, I encountered an error: ${error.message}. Please try again with a different query.`;
+    }
+    return 'Sorry, I encountered an error processing your request. Please try again.';
   }
 }
 
@@ -42,6 +75,8 @@ export async function generateFarmingRecommendation(
     3. Fertilizer recommendations
     4. Pest control suggestions
     5. Expected yield and harvest time
+    
+    Ensure recommendations are practical, scientifically accurate, and suitable for Indian agricultural conditions.
   `;
 
   return generateText(prompt);
@@ -54,7 +89,7 @@ export async function generateMarketInsights(
   marketTrends: any
 ): Promise<string> {
   const prompt = `
-    As a market analyst for agricultural products, provide insights on:
+    As a market analyst for agricultural products in India, provide insights on:
     Crop: ${cropType}
     Historical Price Data: ${JSON.stringify(historicalPrices)}
     Market Trends: ${JSON.stringify(marketTrends)}
@@ -65,29 +100,31 @@ export async function generateMarketInsights(
     3. Market demand analysis
     4. Risks and opportunities in the current market
     5. Recommendations for the farmer
+    
+    Base your analysis on real agricultural market patterns and pricing factors.
   `;
 
   return generateText(prompt);
 }
 
-// Generate disease diagnosis based on crop image description (placeholder for image analysis)
+// Generate disease diagnosis based on crop image description
 export async function generateDiseaseDiagnosis(
   cropType: string,
-  symptoms: string,
-  imageDescription?: string
+  symptoms: string
 ): Promise<string> {
   const prompt = `
-    As a plant pathologist, diagnose the following crop issue:
+    As a plant pathologist specializing in Indian agricultural crops, diagnose the following crop issue:
     Crop: ${cropType}
     Symptoms: ${symptoms}
-    ${imageDescription ? `Visual Description: ${imageDescription}` : ''}
     
     Provide:
-    1. Likely disease or condition
+    1. Likely disease or condition (list top 2-3 possibilities)
     2. Severity assessment
-    3. Treatment recommendations
-    4. Preventive measures
+    3. Treatment recommendations using both organic and chemical options
+    4. Preventive measures for future crops
     5. Impact on yield if left untreated
+    
+    Be specific and practical in your recommendations, considering accessibility of treatments for small-scale farmers.
   `;
 
   return generateText(prompt);
@@ -111,6 +148,8 @@ export async function generateWeatherAlerts(
     3. Irrigation adjustments needed
     4. Best times for field operations in the coming days
     5. Long-term weather pattern analysis for seasonal planning
+    
+    Make recommendations specific to Indian agricultural practices and conditions.
   `;
 
   return generateText(prompt);
@@ -121,18 +160,43 @@ export async function farmingChatbotResponse(
   userQuery: string,
   chatHistory: {role: 'user' | 'bot', content: string}[]
 ): Promise<string> {
-  const historyText = chatHistory
-    .map(msg => `${msg.role === 'user' ? 'Farmer' : 'AgriGenie AI'}: ${msg.content}`)
-    .join('\n');
-  
-  const context = `
-    You are AgriGenie AI, an expert farming assistant with deep knowledge of agriculture, crop management, 
-    market trends, weather impacts, and modern farming techniques. You provide Indian farmers with 
-    helpful, practical advice that considers local conditions and traditional knowledge.
+  try {
+    // Use the chat model with history capabilities
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.0-flash',
+      safetySettings,
+      generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 2048,
+      }
+    });
     
-    Chat history:
-    ${historyText}
-  `;
-  
-  return generateText(userQuery, context);
+    // For a simple approach that works with the free model, just use the generateContent method
+    // with the conversation history formatted in the prompt
+    const systemPrompt = `You are AgriGenie AI, an expert farming assistant specializing in Indian agriculture. 
+You provide helpful, practical advice on farming, crop management, market trends, weather impacts, 
+and modern farming techniques tailored to Indian conditions. Always be specific, accurate, 
+and considerate of local farming practices.
+
+Current conversation history:
+${chatHistory.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`).join('\n')}
+
+User's new question: ${userQuery}
+
+Please respond to the user's most recent question.`;
+
+    const result = await model.generateContent(systemPrompt);
+    return result.response.text();
+  } catch (error) {
+    console.error('Error with Gemini chatbot:', error);
+    if (error instanceof Error) {
+      if (error.message.includes('API key')) {
+        return "Sorry, there's an issue with the AI service configuration. Please check that your Google API key is valid and has access to the Gemini API.";
+      }
+      return `Sorry, I couldn't process your request right now. Error: ${error.message}`;
+    }
+    return 'Sorry, I encountered an error processing your request. Please try again with a different question.';
+  }
 } 

@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Leaf, ShoppingCart, User, Settings, LogOut, BarChart3, MessageSquare } from 'lucide-react';
+import { Leaf, ShoppingCart, User, Settings, LogOut, BarChart3, MessageSquare, Package, PlusCircle, Store } from 'lucide-react';
 
 export function Navbar() {
   const pathname = usePathname();
@@ -30,7 +30,7 @@ export function Navbar() {
   };
 
   return (
-    <nav className="border-b bg-white">
+    <nav className="border-b bg-white sticky top-0 z-50">
       <div className="container flex h-16 items-center justify-between px-4">
         <div className="flex items-center space-x-4">
           <Link href="/dashboard">
@@ -41,48 +41,46 @@ export function Navbar() {
           </Link>
           
           <div className="hidden md:flex items-center space-x-4">
+            <Link href="/dashboard" passHref>
+              <Button variant={isActive('/dashboard') ? 'default' : 'ghost'}>
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Dashboard
+              </Button>
+            </Link>
+
+            <Link href="/marketplace" passHref>
+              <Button variant={pathname.startsWith('/marketplace') && pathname === '/marketplace' ? 'default' : 'ghost'}>
+                <Store className="mr-2 h-4 w-4" />
+                Marketplace
+              </Button>
+            </Link>
+
             {profile?.user_type === 'farmer' && (
               <>
-                <Link href="/dashboard" passHref>
-                  <Button variant={isActive('/dashboard') ? 'default' : 'ghost'}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/marketplace/new" passHref>
-                  <Button variant={isActive('/marketplace/new') ? 'default' : 'ghost'}>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Create Listing
-                  </Button>
-                </Link>
                 <Link href="/marketplace/my-listings" passHref>
-                  <Button variant={isActive('/marketplace/my-listings') ? 'default' : 'ghost'}>
+                  <Button variant={pathname === '/marketplace/my-listings' ? 'default' : 'ghost'}>
                     <Leaf className="mr-2 h-4 w-4" />
                     My Listings
                   </Button>
                 </Link>
+                <Link href="/marketplace/new" passHref>
+                  <Button variant={pathname === '/marketplace/new' ? 'default' : 'ghost'}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Create Listing
+                  </Button>
+                </Link>
               </>
             )}
             
-            {profile?.user_type === 'buyer' && (
-              <>
-                <Link href="/dashboard" passHref>
-                  <Button variant={isActive('/dashboard') ? 'default' : 'ghost'}>
-                    <BarChart3 className="mr-2 h-4 w-4" />
-                    Dashboard
-                  </Button>
-                </Link>
-                <Link href="/marketplace" passHref>
-                  <Button variant={isActive('/marketplace') ? 'default' : 'ghost'}>
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Marketplace
-                  </Button>
-                </Link>
-              </>
-            )}
+            <Link href="/marketplace/orders" passHref>
+              <Button variant={pathname === '/marketplace/orders' ? 'default' : 'ghost'}>
+                <Package className="mr-2 h-4 w-4" />
+                Orders
+              </Button>
+            </Link>
             
             <Link href="/chatbot" passHref>
-              <Button variant={isActive('/chatbot') ? 'default' : 'ghost'}>
+              <Button variant={pathname === '/chatbot' ? 'default' : 'ghost'}>
                 <MessageSquare className="mr-2 h-4 w-4" />
                 AI Chatbot
               </Button>

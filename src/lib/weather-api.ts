@@ -1,6 +1,8 @@
 const WEATHER_API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
 const WEATHER_API_BASE_URL = 'https://api.openweathermap.org/data/2.5';
 
+import { generateText } from '@/lib/gemini';
+
 export interface WeatherData {
   main: {
     temp: number;
@@ -254,5 +256,59 @@ function getReason(
     return `Current conditions are favorable for ${crop}`;
   } else {
     return reasons.join('. ');
+  }
+}
+
+// Generate AI-powered weather advisory for crops using Gemini
+export async function getWeatherAdvisory(weatherData: WeatherData, forecast: ForecastData | null): Promise<string> {
+  try {
+    const { main, weather, wind, name } = weatherData;
+    const temperature = main.temp;
+    const humidity = main.humidity;
+    const windSpeed = wind.speed;
+    const conditions = weather[0].main;
+    const description = weather[0].description;
+    
+    // Get the next 24 hours of forecast if available
+    const next24HoursForecast = forecast?.list.slice(0, 8).map(item => ({
+      time: item.dt_txt,
+      temp: item.main.temp,
+      conditions: item.weather[0].main,
+      description: item.weather[0].description,
+      humidity: item.main.humidity,
+      windSpeed: item.wind.speed
+    }));
+    
+    // Build a prompt for the Gemini API
+    const prompt = `
+      As an agricultural expert, analyze the following weather data and provide specific advice for farmers in ${name}, India:
+      
+      Current Weather:
+      - Temperature: ${temperature}°C
+      - Conditions: ${conditions} (${description})
+      - Humidity: ${humidity}%
+      - Wind Speed: ${windSpeed} m/s
+      
+      ${next24HoursForecast ? `
+      Upcoming Weather (24 hours):
+      ${next24HoursForecast.map(item => 
+        `- ${item.time}: ${item.temp}°C, ${item.conditions} (${item.description}), Humidity: ${item.humidity}%, Wind: ${item.windSpeed} m/s`
+      ).join('\n')}
+      ` : ''}
+      
+      Based on this weather data, please provide:
+      1. A short summary of how the current and upcoming weather will impact farming operations
+      2. Specific recommendations for 3-4 suitable crops that would thrive in these conditions
+      3. Critical actions farmers should take in the next 24-48 hours (irrigation, protection, harvesting, etc.)
+      4. Any weather-related warnings or opportunities farmers should be aware of
+      
+      Format your response in simple language that's practical for farmers in rural India. Avoid technical jargon.
+    `;
+    
+    const response = await generateText(prompt);
+    return response;
+  } catch (error) {
+    console.error('Error generating weather advisory:', error);
+    return "Sorry, we couldn't generate a weather advisory at this time. Please check back later.";
   }
 } 

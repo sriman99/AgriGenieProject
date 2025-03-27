@@ -1,8 +1,8 @@
 fastapi==0.109.2
 uvicorn==0.27.1
 python-dotenv==1.0.1
-supabase==1.2.0  # Downgrading to a more stable version
-httpx==0.24.1    # Specific version compatible with Supabase client
+supabase==2.3.1
+httpx==0.24.1
 google-generativeai==0.3.2
 python-multipart==0.0.9
 Pillow==10.2.0

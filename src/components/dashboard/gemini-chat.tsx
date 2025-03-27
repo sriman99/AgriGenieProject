@@ -24,6 +24,7 @@ import {
   generateMarketInsights,
   farmingChatbotResponse
 } from '@/lib/gemini';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Message = {
   id: string;
@@ -52,6 +53,8 @@ export function GeminiChat() {
   const [marketInsight, setMarketInsight] = useState('');
   const [diseasePrompt, setDiseasePrompt] = useState('');
   const [diagnosisResult, setDiagnosisResult] = useState('');
+  const [selectedCrop, setSelectedCrop] = useState<string>('Generic crop');
+  const [systemError, setSystemError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -124,12 +127,25 @@ export function GeminiChat() {
     ];
   };
 
+  // Convert Message[] to the format expected by the Gemini API
+  const formatMessagesForGemini = () => {
+    // Skip the first message (welcome message)
+    // Start with a minimal history to avoid token limits
+    const messageHistory = messages.slice(Math.max(0, messages.length - 5));
+    
+    return messageHistory.map(msg => ({
+      role: msg.role === 'user' ? 'user' as const : 'bot' as const,
+      content: msg.content 
+    }));
+  };
+
   // Handle sending a new message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     
     if (!input.trim()) return;
     
+    // Create user message
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
@@ -137,16 +153,26 @@ export function GeminiChat() {
       timestamp: new Date(),
     };
     
+    // Add user message to chat
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
+    setSystemError(null);
     
     try {
+      // Format messages for Gemini API
+      const chatHistory = formatMessagesForGemini();
+      
+      // If this is the first user message after welcome, we need special handling
+      const isFirstUserMessage = messages.length === 1 && messages[0].role === 'assistant';
+      
+      // For the first message, we don't pass the welcome message as history
       const responseText = await farmingChatbotResponse(
         input,
-        messages.map(msg => ({ role: msg.role === 'user' ? 'user' : 'bot', content: msg.content }))
+        isFirstUserMessage ? [] : chatHistory
       );
       
+      // Create AI response message
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -154,23 +180,28 @@ export function GeminiChat() {
         timestamp: new Date(),
       };
       
+      // Add AI response to chat
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error generating response:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      setSystemError(`Failed to get response: ${errorMessage}`);
+      
       toast({
         title: 'Error',
         description: 'Failed to get a response. Please try again.',
         variant: 'destructive',
       });
       
-      const errorMessage: Message = {
+      const errorAssistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: 'I apologize, but I encountered an error processing your request. Please try again.',
         timestamp: new Date(),
       };
       
-      setMessages(prev => [...prev, errorMessage]);
+      setMessages(prev => [...prev, errorAssistantMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -179,8 +210,8 @@ export function GeminiChat() {
   // Handle suggestion click
   const handleSuggestionClick = (suggestion: Suggestion) => {
     setInput(suggestion.text);
-    // Optional: Auto-send the suggestion
-    // setTimeout(() => handleSendMessage(), 100);
+    // Automatically send the suggestion after a short delay
+    setTimeout(() => handleSendMessage(), 100);
   };
 
   // Handle generating farming recommendations
@@ -189,6 +220,8 @@ export function GeminiChat() {
     if (!recommendationPrompt.trim()) return;
     
     setIsLoading(true);
+    setSystemError(null);
+    
     try {
       const response = await generateFarmingRecommendation(
         recommendationPrompt,
@@ -199,6 +232,9 @@ export function GeminiChat() {
       setRecommendation(response);
     } catch (error) {
       console.error('Error generating recommendation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setSystemError(`Failed to generate recommendation: ${errorMessage}`);
+      
       toast({
         title: 'Error',
         description: 'Failed to generate recommendation. Please try again.',
@@ -215,6 +251,8 @@ export function GeminiChat() {
     if (!marketQuery.trim()) return;
     
     setIsLoading(true);
+    setSystemError(null);
+    
     try {
       const response = await generateMarketInsights(
         marketQuery,
@@ -225,6 +263,9 @@ export function GeminiChat() {
       setMarketInsight(response);
     } catch (error) {
       console.error('Error generating market insight:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setSystemError(`Failed to generate market insight: ${errorMessage}`);
+      
       toast({
         title: 'Error',
         description: 'Failed to generate market insight. Please try again.',
@@ -241,15 +282,20 @@ export function GeminiChat() {
     if (!diseasePrompt.trim()) return;
     
     setIsLoading(true);
+    setSystemError(null);
+    
     try {
       const response = await generateDiseaseDiagnosis(
-        "Generic crop", // Generic crop type
+        selectedCrop, // Use selected crop instead of hardcoded value
         diseasePrompt // Symptoms
       );
       
       setDiagnosisResult(response);
     } catch (error) {
       console.error('Error generating diagnosis:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setSystemError(`Failed to generate diagnosis: ${errorMessage}`);
+      
       toast({
         title: 'Error',
         description: 'Failed to generate diagnosis. Please try again.',
@@ -273,6 +319,14 @@ export function GeminiChat() {
           Your personal AI assistant for farming advice, market insights, and more
         </CardDescription>
       </CardHeader>
+      
+      {systemError && (
+        <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm">
+          <p className="font-medium">System Error</p>
+          <p>{systemError}</p>
+          <p className="text-xs mt-1">Please check your API key configuration or try again later.</p>
+        </div>
+      )}
       
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <TabsList className="mx-6">
@@ -522,12 +576,33 @@ export function GeminiChat() {
                 
                 <form onSubmit={handleGenerateDiagnosis} className="space-y-3">
                   <div>
+                    <label htmlFor="crop-select" className="text-sm font-medium block mb-1">
+                      Select crop
+                    </label>
+                    <Select value={selectedCrop} onValueChange={setSelectedCrop}>
+                      <SelectTrigger id="crop-select">
+                        <SelectValue placeholder="Select a crop" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Rice">Rice</SelectItem>
+                        <SelectItem value="Wheat">Wheat</SelectItem>
+                        <SelectItem value="Cotton">Cotton</SelectItem>
+                        <SelectItem value="Sugarcane">Sugarcane</SelectItem>
+                        <SelectItem value="Tomato">Tomato</SelectItem>
+                        <SelectItem value="Potato">Potato</SelectItem>
+                        <SelectItem value="Corn">Corn</SelectItem>
+                        <SelectItem value="Generic crop">Other/Unknown</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
                     <label htmlFor="disease-prompt" className="text-sm font-medium">
                       Describe the symptoms or problem
                     </label>
                     <Input
                       id="disease-prompt"
-                      placeholder="E.g., Yellow spots on tomato leaves and wilting"
+                      placeholder="E.g., Yellow spots on leaves and wilting"
                       value={diseasePrompt}
                       onChange={(e) => setDiseasePrompt(e.target.value)}
                       disabled={isLoading}

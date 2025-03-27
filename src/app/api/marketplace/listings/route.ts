@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { withAuth } from '@/lib/auth-helpers';
 
 // GET /api/marketplace/listings - Get all listings with optional filtering
 export async function GET(request: NextRequest) {
@@ -12,12 +13,19 @@ export async function GET(request: NextRequest) {
     const farmerOnly = searchParams.get('farmer_only') === 'true';
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
     
-    // Create supabase client and get auth user
+    // Create supabase client
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    
+    // If farmerOnly is true, we need to authenticate the user
+    if (farmerOnly) {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('GET listings: Farmer-only filter requires authentication');
+        return NextResponse.json({ error: 'Authentication required for farmer-only listings' }, { status: 401 });
+      }
+      
+      console.log('GET listings: Authenticated user for farmer-only filter:', user.id);
     }
 
     // Construct query
@@ -37,8 +45,13 @@ export async function GET(request: NextRequest) {
     }
     
     if (farmerOnly) {
-      // Only return listings by the current user if they are a farmer
-      query = query.eq('farmer_id', user.id);
+      // Get the authenticated user to filter by farmer_id
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // Only return listings by the current user if they are a farmer
+        query = query.eq('farmer_id', user.id);
+      }
     }
     
     if (limit) {
@@ -63,17 +76,12 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/marketplace/listings - Create a new listing
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, user: any) => {
   try {
     const body = await request.json();
     
-    // Create supabase client and get auth user
+    // Create supabase client
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
     
     // Get user profile to check if they are a farmer
     const { data: profile } = await supabase
@@ -113,4 +121,4 @@ export async function POST(request: NextRequest) {
     console.error('Unexpected error in create listing API:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-} 
+}); 

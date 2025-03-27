@@ -17,7 +17,8 @@ export interface MarketTrend {
   current_price: number;
   historical_prices: { date: string; price: number }[];
   forecast_prices: { date: string; price: number }[];
-  factors: string[];
+  analysis: string;
+  factors: string[]; // Market factors affecting price
 }
 
 // Sample crop data - simulating database or external API
@@ -163,6 +164,7 @@ const MARKET_TREND_DATA: Record<string, MarketTrend> = {
       { date: '2023-12-06', price: 43.5 },
       { date: '2023-12-13', price: 43.7 },
     ],
+    analysis: 'Stable',
     factors: [
       'Increased demand during festival season',
       'Limited supply due to delayed harvests',
@@ -186,6 +188,7 @@ const MARKET_TREND_DATA: Record<string, MarketTrend> = {
       { date: '2023-12-06', price: 31.0 },
       { date: '2023-12-13', price: 31.2 },
     ],
+    analysis: 'Stable',
     factors: [
       'Stable domestic supply',
       'Normal demand patterns',
@@ -209,6 +212,7 @@ const MARKET_TREND_DATA: Record<string, MarketTrend> = {
       { date: '2023-12-06', price: 23.5 },
       { date: '2023-12-13', price: 23.4 },
     ],
+    analysis: 'Stable',
     factors: [
       'Increased supply from recent harvest',
       'Lower demand from poultry industry',

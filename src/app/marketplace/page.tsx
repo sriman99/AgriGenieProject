@@ -1,154 +1,189 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth-context';
+import { useState } from 'react';
 import { Navbar } from '@/components/dashboard/navbar';
-import { Button } from '@/components/ui/button';
 import { CropListings } from '@/components/marketplace/listings';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Toaster } from '@/components/ui/toaster';
-import { toast } from 'sonner';
-import { Search, Filter, X, ShoppingCart } from 'lucide-react';
+import { Search, SlidersHorizontal, X } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import Link from 'next/link';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+  SheetFooter
+} from '@/components/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 export default function MarketplacePage() {
-  const router = useRouter();
   const { user, profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterOpen, setFilterOpen] = useState(false);
   const [filters, setFilters] = useState({
-    minPrice: '',
-    maxPrice: '',
+    minPrice: '0',
+    maxPrice: '10000',
     cropType: ''
   });
 
-  // Redirect to login if not authenticated
-  useEffect(() => {
-    if (!user) {
-      router.push('/auth');
-    }
-  }, [user, router]);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Search is already reactive with the searchTerm state
   };
 
-  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({
       ...prev,
-      [name]: value
+      [key]: value
     }));
   };
 
   const resetFilters = () => {
     setFilters({
-      minPrice: '',
-      maxPrice: '',
+      minPrice: '0',
+      maxPrice: '10000',
       cropType: ''
     });
   };
-
-  const isFarmer = profile?.user_type === 'farmer';
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <main className="container py-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div className="flex flex-col space-y-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Marketplace</h1>
-            <p className="text-gray-600">Browse and purchase crops directly from farmers</p>
+            <h1 className="text-3xl font-bold text-gray-900">Marketplace</h1>
+            <p className="text-gray-600 mt-2">Discover and purchase crops directly from farmers</p>
           </div>
-          {isFarmer && (
-            <Link href="/marketplace/new" className="mt-4 md:mt-0">
-              <Button variant="default">
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Create Listing
-              </Button>
-            </Link>
-          )}
-        </div>
-
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search crops, farmers..."
-                value={searchTerm}
-                onChange={handleSearchChange}
-                className="pl-10"
-              />
+          
+          <div className="flex flex-col md:flex-row gap-4 justify-between">
+            {/* Search Bar */}
+            <div className="relative w-full md:w-2/3">
+              <form onSubmit={handleSearch} className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                <Input
+                  type="text"
+                  placeholder="Search for crops..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 pr-4 py-2 w-full"
+                />
+              </form>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setFilterOpen(!filterOpen)}
-              className="md:w-auto w-full"
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              {filterOpen ? 'Hide Filters' : 'Show Filters'}
-            </Button>
-          </div>
-
-          {filterOpen && (
-            <div className="mt-4 p-4 border rounded-md bg-white">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-medium">Filter Options</h3>
-                <Button variant="ghost" size="sm" onClick={resetFilters}>
-                  <X className="mr-2 h-4 w-4" />
-                  Reset
+            
+            <div className="flex gap-2">
+              {/* Filter Sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="flex items-center gap-2">
+                    <SlidersHorizontal size={16} />
+                    <span>Filters</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Filter Options</SheetTitle>
+                    <SheetDescription>
+                      Refine your search with these filters
+                    </SheetDescription>
+                  </SheetHeader>
+                  
+                  <div className="py-6 space-y-6">
+                    <div className="space-y-4">
+                      <Label htmlFor="cropType">Crop Type</Label>
+                      <Select
+                        value={filters.cropType}
+                        onValueChange={(value) => handleFilterChange('cropType', value)}
+                      >
+                        <SelectTrigger id="cropType">
+                          <SelectValue placeholder="Select a crop type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Crops</SelectItem>
+                          <SelectItem value="Rice">Rice</SelectItem>
+                          <SelectItem value="Wheat">Wheat</SelectItem>
+                          <SelectItem value="Cotton">Cotton</SelectItem>
+                          <SelectItem value="Sugarcane">Sugarcane</SelectItem>
+                          <SelectItem value="Corn">Corn</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <Label htmlFor="price-range">Price Range (₹)</Label>
+                        <span className="text-sm text-gray-500">
+                          ₹{filters.minPrice} - ₹{filters.maxPrice}
+                        </span>
+                      </div>
+                      <div className="pt-4">
+                        <Label htmlFor="min-price">Minimum Price</Label>
+                        <div className="flex items-center gap-4">
+                          <Input
+                            id="min-price"
+                            type="number"
+                            min={0}
+                            value={filters.minPrice}
+                            onChange={(e) => handleFilterChange('minPrice', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                      <div className="pt-4">
+                        <Label htmlFor="max-price">Maximum Price</Label>
+                        <div className="flex items-center gap-4">
+                          <Input
+                            id="max-price"
+                            type="number"
+                            min={0}
+                            value={filters.maxPrice}
+                            onChange={(e) => handleFilterChange('maxPrice', e.target.value)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <SheetFooter className="flex justify-between sm:justify-between">
+                    <Button
+                      variant="outline"
+                      onClick={resetFilters}
+                      className="flex items-center gap-2"
+                    >
+                      <X size={16} />
+                      Reset Filters
+                    </Button>
+                    <SheetClose asChild>
+                      <Button>Apply Filters</Button>
+                    </SheetClose>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+              
+              {/* Create Listing Button for Farmers */}
+              {profile?.user_type === 'farmer' && (
+                <Button asChild>
+                  <Link href="/marketplace/new">Create Listing</Link>
                 </Button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Price (₹)</label>
-                  <Input
-                    type="number"
-                    name="minPrice"
-                    placeholder="Min Price"
-                    value={filters.minPrice}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Price (₹)</label>
-                  <Input
-                    type="number"
-                    name="maxPrice"
-                    placeholder="Max Price"
-                    value={filters.maxPrice}
-                    onChange={handleFilterChange}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Crop Type</label>
-                  <select
-                    name="cropType"
-                    value={filters.cropType}
-                    onChange={handleFilterChange}
-                    className="w-full p-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="">All Crops</option>
-                    <option value="Rice">Rice</option>
-                    <option value="Wheat">Wheat</option>
-                    <option value="Cotton">Cotton</option>
-                    <option value="Sugarcane">Sugarcane</option>
-                    <option value="Corn">Corn</option>
-                    <option value="Soybeans">Soybeans</option>
-                  </select>
-                </div>
-              </div>
+              )}
             </div>
-          )}
+          </div>
+          
+          {/* Display Listings with Search and Filter */}
+          <CropListings searchTerm={searchTerm} filters={filters} />
         </div>
-
-        <CropListings 
-          searchTerm={searchTerm}
-          filters={filters}
-        />
       </main>
       <Toaster />
     </div>

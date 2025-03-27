@@ -1,102 +1,18 @@
+'use client';
+
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, ShoppingBag } from "lucide-react";
+import { Loader2, Search, ShoppingBasket, AlertCircle } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import Link from 'next/link';
-
-interface CropListing {
-  id: string;
-  farmer_id: string;
-  crop_name: string;
-  quantity: number;
-  price_per_unit: number;
-  unit: string;
-  description: string | null;
-  available: boolean;
-  created_at: string;
-  farmer: {
-    full_name: string;
-  };
-}
-
-interface PurchaseDialogProps {
-  listing: CropListing;
-  onPurchase: (quantity: number) => Promise<void>;
-}
-
-function PurchaseDialog({ listing, onPurchase }: PurchaseDialogProps) {
-  const [quantity, setQuantity] = useState(1);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const { toast } = useToast();
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    try {
-      await onPurchase(quantity);
-      toast({
-        title: "Success",
-        description: `Successfully ordered ${quantity} ${listing.unit} of ${listing.crop_name}`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to place order. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return (
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Purchase {listing.crop_name}</DialogTitle>
-        <DialogDescription>
-          Enter the quantity you want to purchase
-        </DialogDescription>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            Available: {listing.quantity} {listing.unit}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Price: ₹{listing.price_per_unit}/{listing.unit}
-          </p>
-        </div>
-        <Input
-          type="number"
-          min={1}
-          max={listing.quantity}
-          value={quantity}
-          onChange={(e) => setQuantity(Number(e.target.value))}
-          required
-        />
-        <div>
-          <p className="font-semibold">
-            Total Price: ₹{(quantity * listing.price_per_unit).toFixed(2)}
-          </p>
-        </div>
-        <Button type="submit" className="w-full" disabled={isProcessing}>
-          {isProcessing ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Processing...
-            </>
-          ) : (
-            "Confirm Purchase"
-          )}
-        </Button>
-      </form>
-    </DialogContent>
-  );
-}
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { get, post } from "@/lib/api-client";
 
 interface CropListingsProps {
   searchTerm?: string;
@@ -107,21 +23,62 @@ interface CropListingsProps {
   };
 }
 
+type CropListing = {
+  id: string;
+  crop_name: string;
+  quantity: number;
+  price_per_unit: number;
+  unit: string;
+  description: string;
+  available: boolean;
+  created_at: string;
+  farmer_id: string;
+  farmer: {
+    full_name: string;
+  };
+};
+
 export function CropListings({ searchTerm = '', filters = {} }: CropListingsProps) {
   const [listings, setListings] = useState<CropListing[]>([]);
   const [filteredListings, setFilteredListings] = useState<CropListing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, profile } = useAuth();
+  const [purchaseDialogOpen, setPurchaseDialogOpen] = useState(false);
+  const [selectedListing, setSelectedListing] = useState<CropListing | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [isPurchasing, setIsPurchasing] = useState(false);
+  const { user, profile, loading } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
 
-  // Fetch listings
+  // Fetch listings on component mount
   useEffect(() => {
-    fetchListings();
-  }, []);
+    const loadListings = async () => {
+      // If user is still loading from auth context, wait
+      if (loading) {
+        return;
+      }
+      
+      // Only fetch listings if user is authenticated
+      if (user) {
+        fetchListings();
+      } else {
+        console.log('User not authenticated, redirecting to login');
+        // Redirect to login if not authenticated
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to view marketplace listings.",
+          variant: "destructive",
+        });
+        router.push('/auth');
+      }
+    };
+    
+    loadListings();
+  }, [user, loading]);
 
-  // Apply filters when listings or filter criteria change
+  // Filter listings when searchTerm or filters change
   useEffect(() => {
-    if (listings.length > 0) {
+    if (listings.length) {
       applyFilters();
     }
   }, [listings, searchTerm, filters]);
@@ -129,15 +86,16 @@ export function CropListings({ searchTerm = '', filters = {} }: CropListingsProp
   const fetchListings = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/marketplace/listings');
-      if (!response.ok) throw new Error('Failed to fetch listings');
-      const data = await response.json();
+      console.log('Fetching marketplace listings');
+      const data = await get<CropListing[]>('/api/marketplace/listings?available_only=true');
+      console.log('Listings fetched successfully:', data.length);
       setListings(data);
       setFilteredListings(data);
     } catch (error) {
+      console.error('Error fetching listings:', error);
       toast({
         title: "Error",
-        description: "Failed to fetch listings. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to fetch listings. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -146,57 +104,100 @@ export function CropListings({ searchTerm = '', filters = {} }: CropListingsProp
   };
 
   const applyFilters = () => {
-    let result = [...listings];
+    let filtered = [...listings];
     
-    // Search term filter
+    // Apply search filter
     if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      result = result.filter(listing => 
-        listing.crop_name.toLowerCase().includes(term) ||
-        listing.farmer.full_name.toLowerCase().includes(term) ||
-        (listing.description && listing.description.toLowerCase().includes(term))
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter(listing => 
+        listing.crop_name.toLowerCase().includes(searchLower) || 
+        listing.description?.toLowerCase().includes(searchLower)
       );
     }
     
-    // Price filters
+    // Apply price filters
     if (filters.minPrice) {
       const minPrice = parseFloat(filters.minPrice);
-      result = result.filter(listing => listing.price_per_unit >= minPrice);
+      filtered = filtered.filter(listing => listing.price_per_unit >= minPrice);
     }
     
     if (filters.maxPrice) {
       const maxPrice = parseFloat(filters.maxPrice);
-      result = result.filter(listing => listing.price_per_unit <= maxPrice);
+      filtered = filtered.filter(listing => listing.price_per_unit <= maxPrice);
     }
     
-    // Crop type filter
+    // Apply crop type filter
     if (filters.cropType) {
-      result = result.filter(listing => listing.crop_name === filters.cropType);
+      filtered = filtered.filter(listing => listing.crop_name === filters.cropType);
     }
     
-    setFilteredListings(result);
+    setFilteredListings(filtered);
   };
 
-  const handlePurchase = async (listingId: string, quantity: number) => {
+  const handlePurchase = async () => {
+    if (!selectedListing || !user) return;
+
     try {
-      const response = await fetch('/api/marketplace/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          crop_listing_id: listingId,
-          quantity
-        })
+      setIsPurchasing(true);
+
+      // Validate quantity
+      if (purchaseQuantity <= 0) {
+        toast({
+          title: "Invalid quantity",
+          description: "Please enter a quantity greater than zero.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (purchaseQuantity > selectedListing.quantity) {
+        toast({
+          title: "Insufficient quantity",
+          description: `Only ${selectedListing.quantity} ${selectedListing.unit} available.`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create order
+      await post('/api/marketplace/orders', {
+        crop_listing_id: selectedListing.id,
+        quantity: purchaseQuantity,
       });
 
-      if (!response.ok) throw new Error('Failed to place order');
-      
-      // Refresh listings after successful purchase
+      // Success
+      toast({
+        title: "Order Placed",
+        description: `Your order for ${purchaseQuantity} ${selectedListing.unit} of ${selectedListing.crop_name} has been placed successfully.`,
+      });
+
+      // Close dialog and refresh listings
+      setPurchaseDialogOpen(false);
       fetchListings();
-    } catch (error) {
-      throw error; // Let the PurchaseDialog handle the error
+    } catch (error: any) {
+      console.error('Error placing order:', error);
+      toast({
+        title: "Order Failed",
+        description: error.message || 'Failed to place order. Please try again.',
+        variant: "destructive",
+      });
+    } finally {
+      setIsPurchasing(false);
     }
   };
 
+  const openPurchaseDialog = (listing: CropListing) => {
+    setSelectedListing(listing);
+    setPurchaseQuantity(1);
+    setPurchaseDialogOpen(true);
+  };
+
+  const calculateTotalPrice = () => {
+    if (!selectedListing) return 0;
+    return purchaseQuantity * selectedListing.price_per_unit;
+  };
+
+  // Show loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
@@ -205,79 +206,148 @@ export function CropListings({ searchTerm = '', filters = {} }: CropListingsProp
     );
   }
 
+  // Show empty state
   if (filteredListings.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
-          <p className="text-muted-foreground">
-            {listings.length === 0
-              ? "No crops currently listed."
-              : "No crops match your search criteria."}
+          <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">No Listings Found</h3>
+          <p className="text-muted-foreground mb-6">
+            {searchTerm || filters.minPrice || filters.maxPrice || filters.cropType 
+              ? "No matching listings found. Try adjusting your search or filters."
+              : "There are no crop listings available at the moment."}
           </p>
+          {searchTerm || filters.minPrice || filters.maxPrice || filters.cropType ? (
+            <Button onClick={() => router.push('/marketplace')}>
+              Clear Filters
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {filteredListings.map((listing) => (
-        <Card key={listing.id} className="hover:shadow-lg transition-shadow overflow-hidden">
-          <div className="relative h-40 bg-gray-100">
-            <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-green-100 flex items-center justify-center">
-              <ShoppingBag className="h-12 w-12 text-green-600 opacity-20" />
-            </div>
-            {!listing.available && (
-              <div className="absolute inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center">
-                <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                  Sold Out
-                </span>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filteredListings.map((listing) => (
+          <Card key={listing.id} className="overflow-hidden">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-start">
+                <div>
+                  <CardTitle className="text-xl">
+                    {listing.crop_name}
+                  </CardTitle>
+                  <CardDescription>
+                    By {listing.farmer.full_name}
+                  </CardDescription>
+                </div>
+                <Badge>{listing.unit}</Badge>
               </div>
-            )}
-          </div>
-          <CardHeader>
-            <CardTitle className="flex justify-between items-start">
-              <Link href={`/marketplace/${listing.id}`} className="hover:text-green-600 transition-colors">
-                {listing.crop_name}
-              </Link>
-              <span className="text-lg font-bold text-green-600">
-                ₹{listing.price_per_unit}/{listing.unit}
-              </span>
-            </CardTitle>
-            <CardDescription>
-              Listed by {listing.farmer.full_name}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p className="text-sm">
-                Available: {listing.quantity} {listing.unit}
-              </p>
-              {listing.description && (
-                <p className="text-sm text-muted-foreground line-clamp-2">{listing.description}</p>
-              )}
-              <div className="flex justify-between pt-4">
-                <Link href={`/marketplace/${listing.id}`}>
-                  <Button variant="outline" size="sm">
-                    View Details
-                  </Button>
-                </Link>
-                {profile?.user_type === 'buyer' && listing.available && (
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm">Purchase</Button>
-                    </DialogTrigger>
-                    <PurchaseDialog
-                      listing={listing}
-                      onPurchase={(quantity) => handlePurchase(listing.id, quantity)}
-                    />
-                  </Dialog>
+            </CardHeader>
+            <CardContent className="pb-2">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Price:</span>
+                  <span className="font-bold">₹{listing.price_per_unit} per {listing.unit}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Available:</span>
+                  <span className="font-medium">{listing.quantity} {listing.unit}</span>
+                </div>
+                {listing.description && (
+                  <div className="mt-4">
+                    <p className="text-sm text-muted-foreground line-clamp-2">{listing.description}</p>
+                  </div>
                 )}
               </div>
+            </CardContent>
+            <CardFooter className="pt-2 flex justify-between">
+              <Button variant="outline" asChild className="w-1/2">
+                <Link href={`/marketplace/listing/${listing.id}`}>
+                  View Details
+                </Link>
+              </Button>
+              <Button 
+                className="w-1/2"
+                onClick={() => openPurchaseDialog(listing)}
+                disabled={profile?.user_type !== 'buyer'}
+              >
+                <ShoppingBasket className="h-4 w-4 mr-2" />
+                Purchase
+              </Button>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+
+      {/* Purchase Dialog */}
+      {selectedListing && (
+        <Dialog open={purchaseDialogOpen} onOpenChange={setPurchaseDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Purchase {selectedListing.crop_name}</DialogTitle>
+              <DialogDescription>
+                Complete your purchase from {selectedListing.farmer.full_name}
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Crop</Label>
+                  <p className="text-sm mt-1">{selectedListing.crop_name}</p>
+                </div>
+                <div>
+                  <Label>Price per {selectedListing.unit}</Label>
+                  <p className="text-sm mt-1">₹{selectedListing.price_per_unit}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Available Quantity</Label>
+                  <p className="text-sm mt-1">{selectedListing.quantity} {selectedListing.unit}</p>
+                </div>
+                <div>
+                  <Label htmlFor="purchase-quantity">Purchase Quantity</Label>
+                  <Input
+                    id="purchase-quantity"
+                    type="number"
+                    min={1}
+                    max={selectedListing.quantity}
+                    value={purchaseQuantity}
+                    onChange={(e) => setPurchaseQuantity(Number(e.target.value))}
+                    className="mt-1"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label>Total Price</Label>
+                <p className="text-lg font-bold mt-1">₹{calculateTotalPrice().toFixed(2)}</p>
+              </div>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPurchaseDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handlePurchase} disabled={isPurchasing}>
+                {isPurchasing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  "Confirm Purchase"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 } 

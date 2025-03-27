@@ -6,8 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AreaChart, Cloud, CloudRain, Droplets, ThermometerSun, Wind } from 'lucide-react';
-import { getCurrentWeather, getWeatherForecast, getCropSuitabilityFromWeather, WeatherData, ForecastData } from '@/lib/weather-api';
+import { AreaChart, Cloud, CloudRain, Droplets, ThermometerSun, Wind, AlertTriangle, Leaf } from 'lucide-react';
+import { 
+  getCurrentWeather, 
+  getWeatherForecast, 
+  getCropSuitabilityFromWeather,
+  getWeatherAdvisory,
+  getWeatherByCoordinates,
+  WeatherData, 
+  ForecastData 
+} from '@/lib/weather-api';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -19,6 +27,8 @@ export function WeatherWidget() {
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('current');
   const [cropSuitability, setCropSuitability] = useState<{ crop: string; suitability: number; reason: string }[]>([]);
+  const [aiAdvisory, setAiAdvisory] = useState<string>('');
+  const [advisoryLoading, setAdvisoryLoading] = useState<boolean>(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -29,6 +39,7 @@ export function WeatherWidget() {
     if (!loc) return;
     
     setLoading(true);
+    setAiAdvisory('');
     try {
       const weatherData = await getCurrentWeather(loc);
       setWeather(weatherData);
@@ -39,6 +50,11 @@ export function WeatherWidget() {
       if (weatherData) {
         const suitability = getCropSuitabilityFromWeather(weatherData);
         setCropSuitability(suitability);
+        
+        // If the active tab is 'advisory', fetch the AI advisory
+        if (activeTab === 'advisory') {
+          fetchAiAdvisory(weatherData, forecastData);
+        }
       }
     } catch (error) {
       console.error('Error fetching weather data:', error);
@@ -49,6 +65,33 @@ export function WeatherWidget() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAiAdvisory = async (weatherData: WeatherData, forecastData: ForecastData) => {
+    setAdvisoryLoading(true);
+    try {
+      const advisory = await getWeatherAdvisory(weatherData, forecastData);
+      setAiAdvisory(advisory);
+    } catch (error) {
+      console.error('Error fetching AI advisory:', error);
+      toast({
+        title: 'Advisory Generation Error',
+        description: 'Could not generate the AI-powered advisory at this time',
+        variant: 'destructive',
+      });
+    } finally {
+      setAdvisoryLoading(false);
+    }
+  };
+
+  // Handle tab change
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    
+    // If switching to advisory tab and we have weather data but no advisory yet
+    if (value === 'advisory' && weather && forecast && !aiAdvisory) {
+      fetchAiAdvisory(weather, forecast);
     }
   };
 
@@ -75,6 +118,11 @@ export function WeatherWidget() {
             if (weatherData) {
               const suitability = getCropSuitabilityFromWeather(weatherData);
               setCropSuitability(suitability);
+              
+              // If the active tab is 'advisory', fetch the AI advisory
+              if (activeTab === 'advisory') {
+                fetchAiAdvisory(weatherData, forecastData);
+              }
             }
           } catch (error) {
             console.error('Error fetching weather by location:', error);
@@ -188,13 +236,15 @@ export function WeatherWidget() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="current" value={activeTab} onValueChange={setActiveTab}>
+        <Tabs defaultValue="current" value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="w-full">
             <TabsTrigger value="current" className="flex-1">Current</TabsTrigger>
             <TabsTrigger value="forecast" className="flex-1">Forecast</TabsTrigger>
-            <TabsTrigger value="crops" className="flex-1">Crop Advisory</TabsTrigger>
+            <TabsTrigger value="crops" className="flex-1">Crop Suitability</TabsTrigger>
+            <TabsTrigger value="advisory" className="flex-1">AI Advisory</TabsTrigger>
           </TabsList>
           
+          {/* Current Weather Tab */}
           <TabsContent value="current">
             {weather && (
               <div className="space-y-4">
@@ -282,6 +332,7 @@ export function WeatherWidget() {
             )}
           </TabsContent>
           
+          {/* Forecast Tab */}
           <TabsContent value="forecast">
             {forecast && (
               <div className="space-y-4">
@@ -343,6 +394,7 @@ export function WeatherWidget() {
             )}
           </TabsContent>
           
+          {/* Crop Suitability Tab */}
           <TabsContent value="crops">
             {cropSuitability.length > 0 && (
               <div className="space-y-4">
@@ -391,10 +443,73 @@ export function WeatherWidget() {
               </div>
             )}
           </TabsContent>
+          
+          {/* AI Advisory Tab */}
+          <TabsContent value="advisory">
+            {advisoryLoading ? (
+              <div className="space-y-4 p-4">
+                <div className="flex items-center gap-2">
+                  <Leaf className="h-5 w-5 text-green-600" />
+                  <h3 className="text-lg font-semibold">Generating AI-Powered Crop Advisory...</h3>
+                </div>
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-[90%] mb-4" />
+                
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-[85%] mb-4" />
+                
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-[70%]" />
+              </div>
+            ) : aiAdvisory ? (
+              <div className="space-y-4 p-2">
+                <div className="flex items-start gap-2">
+                  <Leaf className="h-5 w-5 text-green-600 mt-1" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">AI-Powered Crop Advisory</h3>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      Based on current and forecasted weather conditions for {weather?.name}
+                    </p>
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 whitespace-pre-wrap">
+                      {aiAdvisory}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      This is an AI-generated advisory. Use along with your local knowledge and experience.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => fetchAiAdvisory(weather!, forecast!)}
+                    disabled={advisoryLoading}
+                  >
+                    Refresh Advisory
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center p-8 text-center">
+                <AlertTriangle className="h-10 w-10 text-amber-500 mb-4" />
+                <h3 className="text-lg font-medium mb-1">Advisory Not Available</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  We couldn't generate a weather-based crop advisory at this time.
+                </p>
+                <Button onClick={() => fetchAiAdvisory(weather!, forecast!)}>
+                  Try Again
+                </Button>
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
-}
-
-import { getWeatherByCoordinates } from '@/lib/weather-api'; 
+} 
