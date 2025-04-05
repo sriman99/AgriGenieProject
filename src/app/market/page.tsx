@@ -1,6 +1,6 @@
 'use client';
 
-import { MarketAnalysis } from "@/components/market/analysis";
+import { MarketAnalysis } from "@/components/layout/market/analysis";
 import { Toaster } from "@/components/ui/toaster";
 
 export default function MarketPage() {
