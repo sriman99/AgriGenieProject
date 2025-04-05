@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ interface AssessmentResult {
   diseases: Disease[];
   treatment_plan: TreatmentPlan;
   imageUrl: string;
+  timestamp: string;
 }
 
 export default function FarmerAssess() {
@@ -37,7 +38,28 @@ export default function FarmerAssess() {
   const [isGeneratingTreatment, setIsGeneratingTreatment] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [previousAssessments, setPreviousAssessments] = useState<AssessmentResult[]>([]);
   const { toast } = useToast();
+
+  // Load previous assessments on component mount
+  useEffect(() => {
+    const stored = localStorage.getItem('cropAssessments');
+    if (stored) {
+      try {
+        const assessments = JSON.parse(stored);
+        setPreviousAssessments(assessments);
+      } catch (error) {
+        console.error('Error loading stored assessments:', error);
+      }
+    }
+  }, []);
+
+  // Save assessment to localStorage
+  const saveAssessment = (assessment: AssessmentResult) => {
+    const updatedAssessments = [assessment, ...previousAssessments].slice(0, 5); // Keep only last 5 assessments
+    setPreviousAssessments(updatedAssessments);
+    localStorage.setItem('cropAssessments', JSON.stringify(updatedAssessments));
+  };
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -189,7 +211,7 @@ export default function FarmerAssess() {
       const data = await response.json();
       
       // Set initial result with diseases
-      setResult({
+      const initialResult = {
         diseases: data.health_assessment.diseases,
         treatment_plan: {
           immediate_steps: [],
@@ -198,16 +220,20 @@ export default function FarmerAssess() {
           chemical_solutions: [],
         },
         imageUrl: previewUrl,
-      });
+        timestamp: new Date().toISOString(),
+      };
+      setResult(initialResult);
 
       // Generate treatment plan
       setIsGeneratingTreatment(true);
       try {
         const treatmentPlan = await generateTreatmentPlan(data.health_assessment.diseases);
-        setResult(prev => prev ? {
-          ...prev,
+        const finalResult = {
+          ...initialResult,
           treatment_plan: treatmentPlan
-        } : null);
+        };
+        setResult(finalResult);
+        saveAssessment(finalResult);
       } catch (error) {
         console.error('Error generating treatment plan:', error);
         toast({
@@ -431,54 +457,46 @@ export default function FarmerAssess() {
         ) : (
           <Card>
             <CardHeader>
-              <CardTitle>How it works</CardTitle>
+              <CardTitle>Previous Assessments</CardTitle>
               <CardDescription>
-                Understanding the crop health assessment process
+                Your recent crop health assessments
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/10 p-2 rounded-md">
-                    <Leaf className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">1. Upload Image</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Select a clear image of your crop's leaves or flowers showing any visible issues.
-                    </p>
-                  </div>
+            <CardContent>
+              {previousAssessments.length > 0 ? (
+                <div className="space-y-4">
+                  {previousAssessments.map((assessment, index) => (
+                    <div key={index} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(assessment.timestamp).toLocaleDateString()}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setResult(assessment)}
+                        >
+                          View Details
+                        </Button>
+                      </div>
+                      <div className="space-y-1">
+                        {assessment.diseases.map((disease, idx) => (
+                          <div key={idx} className="flex items-center justify-between text-sm">
+                            <span>{disease.name}</span>
+                            <span className="text-muted-foreground">
+                              {(disease.probability * 100).toFixed(1)}% confidence
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/10 p-2 rounded-md">
-                    <Loader2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">2. AI Analysis</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Our AI analyzes the image to identify potential diseases and issues.
-                    </p>
-                  </div>
+              ) : (
+                <div className="text-center text-muted-foreground py-4">
+                  No previous assessments found
                 </div>
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary/10 p-2 rounded-md">
-                    <Leaf className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">3. Get Results</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Receive detailed diagnosis and treatment recommendations.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-muted p-4 rounded-lg">
-                <h4 className="font-medium mb-2">Need help?</h4>
-                <p className="text-sm text-muted-foreground">
-                  If you're unsure about the results or need additional guidance, our agricultural experts are here to help.
-                  Contact us through the support chat for personalized assistance.
-                </p>
-              </div>
+              )}
             </CardContent>
           </Card>
         )}
