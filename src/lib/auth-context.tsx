@@ -6,11 +6,47 @@ import type { User } from '@supabase/supabase-js'
 import type { Database } from './supabase'
 import { toast } from 'sonner'
 
+// Define the cart item type
+export type CartItem = {
+  id: string
+  listingId: string
+  cropName: string
+  price: number
+  quantity: number
+  farmerId: string
+  farmerName: string
+  unit: string
+  imageUrl?: string
+  maxQuantity: number // The maximum quantity available
+}
+
+// Define the wishlist item type
+export type WishlistItem = {
+  id: string
+  listingId: string
+  cropName: string
+  price: number
+  farmerId: string
+  farmerName: string
+  addedAt: Date
+  imageUrl?: string
+}
+
 type Profile = Database['public']['Tables']['profiles']['Row']
+
 type AuthContextType = {
   user: User | null
   profile: Profile | null
   loading: boolean
+  cartItems: CartItem[]
+  wishlistItems: WishlistItem[]
+  addToCart: (item: CartItem) => void
+  removeFromCart: (itemId: string) => void
+  updateCartItemQuantity: (itemId: string, quantity: number) => void
+  clearCart: () => void
+  addToWishlist: (item: WishlistItem) => void
+  removeFromWishlist: (itemId: string) => void
+  clearWishlist: () => void
   signIn: (email: string, password: string) => Promise<string | undefined>
   signUp: (email: string, password: string, fullName: string, userType: string) => Promise<User | void>
   signOut: () => Promise<void>
@@ -20,13 +56,68 @@ type AuthContextType = {
 let lastSignupAttempt = 0;
 const SIGNUP_COOLDOWN = 60000; // 1 minute cooldown
 
+// Local storage keys
+const CART_STORAGE_KEY = 'agrigenie_cart';
+const WISHLIST_STORAGE_KEY = 'agrigenie_wishlist';
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([])
   const supabase = createClient()
+
+  // Load cart and wishlist from local storage when user is authenticated
+  useEffect(() => {
+    if (user) {
+      // Load cart from local storage
+      const savedCart = localStorage.getItem(`${CART_STORAGE_KEY}_${user.id}`);
+      if (savedCart) {
+        try {
+          setCartItems(JSON.parse(savedCart));
+        } catch (e) {
+          console.error('Error parsing cart from local storage:', e);
+          setCartItems([]);
+        }
+      }
+
+      // Load wishlist from local storage
+      const savedWishlist = localStorage.getItem(`${WISHLIST_STORAGE_KEY}_${user.id}`);
+      if (savedWishlist) {
+        try {
+          setWishlistItems(JSON.parse(savedWishlist));
+        } catch (e) {
+          console.error('Error parsing wishlist from local storage:', e);
+          setWishlistItems([]);
+        }
+      }
+    } else {
+      // Clear cart and wishlist if no user
+      setCartItems([]);
+      setWishlistItems([]);
+    }
+  }, [user]);
+
+  // Save cart to local storage when it changes
+  useEffect(() => {
+    if (user && cartItems.length > 0) {
+      localStorage.setItem(`${CART_STORAGE_KEY}_${user.id}`, JSON.stringify(cartItems));
+    } else if (user) {
+      localStorage.removeItem(`${CART_STORAGE_KEY}_${user.id}`);
+    }
+  }, [cartItems, user]);
+
+  // Save wishlist to local storage when it changes
+  useEffect(() => {
+    if (user && wishlistItems.length > 0) {
+      localStorage.setItem(`${WISHLIST_STORAGE_KEY}_${user.id}`, JSON.stringify(wishlistItems));
+    } else if (user) {
+      localStorage.removeItem(`${WISHLIST_STORAGE_KEY}_${user.id}`);
+    }
+  }, [wishlistItems, user]);
 
   useEffect(() => {
     const getUser = async () => {
@@ -246,12 +337,90 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+
+    // Clear cart and wishlist when signing out
+    setCartItems([])
+    setWishlistItems([])
   }
+
+  // Cart management functions
+  const addToCart = (item: CartItem) => {
+    setCartItems((prevItems) => {
+      // Check if item already exists in cart
+      const existingItem = prevItems.find((i) => i.listingId === item.listingId);
+      if (existingItem) {
+        // Update quantity if item exists
+        return prevItems.map((i) => 
+          i.listingId === item.listingId 
+            ? { ...i, quantity: i.quantity + item.quantity } 
+            : i
+        );
+      } else {
+        // Add new item
+        return [...prevItems, item];
+      }
+    });
+
+    toast.success(`Added ${item.cropName} to cart`);
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setCartItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+  };
+
+  const updateCartItemQuantity = (itemId: string, quantity: number) => {
+    if (quantity <= 0) {
+      removeFromCart(itemId);
+      return;
+    }
+
+    setCartItems((prevItems) => 
+      prevItems.map((item) => 
+        item.id === itemId ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
+  // Wishlist management functions
+  const addToWishlist = (item: WishlistItem) => {
+    setWishlistItems((prevItems) => {
+      // Check if item already exists
+      const existingItem = prevItems.find((i) => i.listingId === item.listingId);
+      if (existingItem) {
+        return prevItems;
+      } else {
+        return [...prevItems, item];
+      }
+    });
+
+    toast.success(`Added ${item.cropName} to wishlist`);
+  };
+
+  const removeFromWishlist = (itemId: string) => {
+    setWishlistItems((prevItems) => prevItems.filter((item) => item.id !== itemId));
+  };
+
+  const clearWishlist = () => {
+    setWishlistItems([]);
+  };
 
   const value = {
     user,
     profile,
     loading,
+    cartItems,
+    wishlistItems,
+    addToCart,
+    removeFromCart,
+    updateCartItemQuantity,
+    clearCart,
+    addToWishlist,
+    removeFromWishlist,
+    clearWishlist,
     signIn,
     signUp,
     signOut,
