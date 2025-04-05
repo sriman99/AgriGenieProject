@@ -15,6 +15,7 @@ export function Navigation() {
   const { user, profile, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   const isActive = (path: string) => pathname === path;
 
@@ -46,6 +47,12 @@ export function Navigation() {
             <Link href="/dashboard">
               <Button variant={isActive("/dashboard") ? "default" : "ghost"}>
                 Dashboard
+              </Button>
+            </Link>
+
+            <Link href={isHomePage ? "#features" : "/features"}>
+              <Button variant={isActive("/features") ? "default" : "ghost"}>
+                Features
               </Button>
             </Link>
 
@@ -116,7 +123,7 @@ export function Navigation() {
 
       {/* Mobile Navigation */}
       <div className="md:hidden border-t">
-        <div className="grid grid-cols-4 gap-1 p-2">
+        <div className="grid grid-cols-5 gap-1 p-2">
           <Link href="/dashboard">
             <Button
               variant={isActive("/dashboard") ? "default" : "ghost"}
@@ -124,6 +131,16 @@ export function Navigation() {
               size="sm"
             >
               Home
+            </Button>
+          </Link>
+
+          <Link href={isHomePage ? "#features" : "/features"}>
+            <Button
+              variant={isActive("/features") ? "default" : "ghost"}
+              className="w-full"
+              size="sm"
+            >
+              Features
             </Button>
           </Link>
 
