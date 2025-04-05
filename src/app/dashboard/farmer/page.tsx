@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { WeatherWidget } from '@/components/dashboard/weather-widget';
 import { MarketPricesWidget } from '@/components/dashboard/market-prices-widget';
 import { GeminiChat } from '@/components/dashboard/gemini-chat';
+import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
 
 interface StatCardProps {
   title: string;
@@ -64,6 +66,7 @@ function StatCard({ title, value, description, icon, trend, trendValue }: StatCa
 export default function FarmerDashboard() {
   const { user, profile, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
   
   useEffect(() => {
     // Wait for auth to load
@@ -171,6 +174,15 @@ export default function FarmerDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex justify-end mb-4">
+              <Button 
+                onClick={() => router.push('/dashboard/farmer/assess')}
+                className="flex items-center gap-2"
+              >
+                <Leaf className="h-4 w-4" />
+                Assess Crop Health
+              </Button>
+            </div>
             <div className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
