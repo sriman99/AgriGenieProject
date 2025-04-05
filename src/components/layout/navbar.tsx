@@ -73,6 +73,9 @@ export function Navbar() {
           <NavLink href="/pricing" pathname={pathname}>
             Pricing
           </NavLink>
+          <NavLink href="/community" pathname={pathname}>
+            Community
+          </NavLink>
           <NavLink href="/blog" pathname={pathname}>
             Blog
           </NavLink>

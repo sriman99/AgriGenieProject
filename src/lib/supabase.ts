@@ -1,4 +1,14 @@
 import { createBrowserClient } from '@supabase/ssr'
+import fetch from 'node-fetch'
+
+// Define Json type for TypeScript
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
 export const createClient = () => {
   return createBrowserClient(
