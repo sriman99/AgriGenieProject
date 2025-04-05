@@ -50,7 +50,7 @@ export function Navbar() {
 
         {/* Desktop Menu */}
         <nav className="hidden md:flex items-center space-x-8">
-          <NavLink href="#features" pathname={pathname}>
+          <NavLink href="/features" pathname={pathname}>
             Features
           </NavLink>
           <NavLink href="/marketplace" pathname={pathname}>
@@ -173,12 +173,15 @@ function NavLink({
   pathname: string;
 }) {
   const isActive = pathname === href;
+  
+  // Determine the actual href based on current path
+  const actualHref = href === "/features" && pathname === "/" ? "#features" : href;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     // Check if the href is an anchor link (starts with #)
-    if (href.startsWith("#")) {
+    if (actualHref.startsWith("#")) {
       e.preventDefault();
-      const element = document.querySelector(href);
+      const element = document.querySelector(actualHref);
       if (element) {
         element.scrollIntoView({
           behavior: "smooth",
@@ -190,7 +193,7 @@ function NavLink({
 
   return (
     <Link
-      href={href}
+      href={actualHref}
       onClick={handleClick}
       className={`font-medium transition-colors ${
         isActive ? "text-green-600" : "text-green-600"
@@ -211,11 +214,14 @@ function MobileNavLink({
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
+  
+  // Determine the actual href based on current path
+  const actualHref = href === "/features" && pathname === "/" ? "#features" : href;
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (href.startsWith("#")) {
+    if (actualHref.startsWith("#")) {
       e.preventDefault();
-      const element = document.querySelector(href);
+      const element = document.querySelector(actualHref);
       if (element) {
         element.scrollIntoView({
           behavior: "smooth",
@@ -227,7 +233,7 @@ function MobileNavLink({
 
   return (
     <Link
-      href={href}
+      href={actualHref}
       onClick={handleClick}
       className={`block py-2 text-lg font-medium ${
         isActive ? "text-green-600" : "text-gray-900 hover:text-green-600"

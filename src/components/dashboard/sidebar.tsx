@@ -15,15 +15,19 @@ import {
   Store,
   List,
   Truck,
+  Grid,
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { NavLink } from "./nav-link";
+import { usePathname } from "next/navigation";
 
 interface SidebarProps extends React.HTMLAttributes<HTMLDivElement> {}
 
 export function Sidebar({ className }: SidebarProps) {
   const { profile } = useAuth();
   const userType = profile?.user_type;
+  const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
   return (
     <div className={cn("pb-12", className)}>
@@ -91,6 +95,9 @@ export function Sidebar({ className }: SidebarProps) {
             Tools
           </h2>
           <div className="space-y-1">
+            <NavLink href={isHomePage ? "#features" : "/features"} icon={<Grid />}>
+              Features
+            </NavLink>
             {userType === "farmer" && (
               <NavLink href="/dashboard/crop-analysis" icon={<Upload />}>
                 Crop Analysis
