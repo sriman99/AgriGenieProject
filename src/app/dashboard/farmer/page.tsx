@@ -19,7 +19,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   Clock,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  X
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { redirect } from 'next/navigation';
@@ -31,6 +33,11 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface StatCardProps {
   title: string;
@@ -91,10 +98,36 @@ interface AssessmentResult {
   timestamp: string;
 }
 
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time: string;
+  duration: string;
+  type: 'upcoming' | 'past';
+  status: string;
+  icon: string;
+}
+
 export default function FarmerDashboard() {
   const { user, profile, loading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [recentAssessments, setRecentAssessments] = useState<AssessmentResult[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
+  const [newTask, setNewTask] = useState({
+    title: '',
+    description: '',
+    date: '',
+    time: '',
+    duration: '',
+    type: 'upcoming',
+    status: 'Pending',
+    icon: 'CloudSun'
+  });
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const router = useRouter();
   
   // Sample preview data for empty state
@@ -152,6 +185,56 @@ export default function FarmerDashboard() {
         }
       } catch (error) {
         console.error('Error loading stored assessments:', error);
+      }
+      
+      // Load tasks from localStorage
+      try {
+        const storedTasks = localStorage.getItem('farmerTasks');
+        if (storedTasks) {
+          const parsedTasks = JSON.parse(storedTasks);
+          setTasks(parsedTasks);
+        } else {
+          // Initialize with sample tasks if none exist
+          const sampleTasks: Task[] = [
+            {
+              id: '1',
+              title: 'Apply fertilizer to Field A',
+              description: 'Apply NPK fertilizer to the wheat field',
+              date: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // Tomorrow
+              time: '06:00',
+              duration: '3 hours',
+              type: 'upcoming' as const,
+              status: 'Clear skies, ideal conditions',
+              icon: 'CloudSun'
+            },
+            {
+              id: '2',
+              title: 'Irrigate the corn field',
+              description: 'Set up sprinklers for the corn field',
+              date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 2).toISOString(), // Day after tomorrow
+              time: '08:00',
+              duration: '2 hours',
+              type: 'upcoming' as const,
+              status: 'Moderate rainfall expected',
+              icon: 'CloudRain'
+            },
+            {
+              id: '3',
+              title: 'Harvest wheat from Field B',
+              description: 'Complete the wheat harvest in Field B',
+              date: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // Yesterday
+              time: '10:00',
+              duration: '6 hours',
+              type: 'past' as const,
+              status: 'Completed',
+              icon: 'Wheat'
+            }
+          ];
+          setTasks(sampleTasks);
+          localStorage.setItem('farmerTasks', JSON.stringify(sampleTasks));
+        }
+      } catch (error) {
+        console.error('Error loading stored tasks:', error);
       }
       
       // Simulate data loading
@@ -237,6 +320,119 @@ export default function FarmerDashboard() {
       return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
     } else {
       return date.toLocaleDateString();
+    }
+  };
+  
+  // Format date for input field
+  const formatDateForInput = (date: Date) => {
+    return date.toISOString().split('T')[0];
+  };
+  
+  // Handle adding a new task
+  const handleAddTask = () => {
+    if (!newTask.title || !newTask.date || !newTask.time) {
+      return;
+    }
+    
+    const task: Task = {
+      id: Date.now().toString(),
+      title: newTask.title,
+      description: newTask.description,
+      date: new Date(newTask.date).toISOString(),
+      time: newTask.time,
+      duration: newTask.duration,
+      type: newTask.type as 'upcoming' | 'past',
+      status: newTask.status,
+      icon: newTask.icon
+    };
+    
+    const updatedTasks = [...tasks, task];
+    setTasks(updatedTasks);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('farmerTasks', JSON.stringify(updatedTasks));
+    } catch (error) {
+      console.error('Error saving tasks to localStorage:', error);
+    }
+    
+    setIsAddTaskOpen(false);
+    
+    // Reset form
+    setNewTask({
+      title: '',
+      description: '',
+      date: '',
+      time: '',
+      duration: '',
+      type: 'upcoming',
+      status: 'Pending',
+      icon: 'CloudSun'
+    });
+  };
+  
+  // Get icon component based on icon name
+  const getIconComponent = (iconName: string) => {
+    switch (iconName) {
+      case 'CloudSun':
+        return <CloudSun className="h-5 w-5" />;
+      case 'Tractor':
+        return <Tractor className="h-5 w-5" />;
+      case 'Sprout':
+        return <Sprout className="h-5 w-5" />;
+      case 'BarChart':
+        return <BarChart className="h-5 w-5" />;
+      case 'Wheat':
+        return <Wheat className="h-5 w-5" />;
+      default:
+        return <CloudSun className="h-5 w-5" />;
+    }
+  };
+  
+  // Handle marking a task as complete
+  const handleCompleteTask = (taskId: string) => {
+    const updatedTasks = tasks.map(task => {
+      if (task.id === taskId) {
+        return {
+          ...task,
+          type: 'past' as const,
+          status: 'Completed'
+        };
+      }
+      return task;
+    });
+    
+    setTasks(updatedTasks);
+    
+    // Save to localStorage
+    try {
+      localStorage.setItem('farmerTasks', JSON.stringify(updatedTasks));
+    } catch (error) {
+      console.error('Error saving tasks to localStorage:', error);
+    }
+  };
+  
+  // Handle deleting a task
+  const handleDeleteTask = (taskId: string) => {
+    setTaskToDelete(taskId);
+    setIsDeleteConfirmOpen(true);
+  };
+  
+  // Confirm task deletion
+  const confirmDeleteTask = () => {
+    if (taskToDelete) {
+      const updatedTasks = tasks.filter(task => task.id !== taskToDelete);
+      setTasks(updatedTasks);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('farmerTasks', JSON.stringify(updatedTasks));
+      } catch (error) {
+        console.error('Error saving tasks to localStorage:', error);
+      }
+      
+      setIsDeleteConfirmOpen(false);
+      setTaskToDelete(null);
     }
   };
   
@@ -491,13 +687,133 @@ export default function FarmerDashboard() {
         
         <Card className="lg:col-span-2">
           <CardHeader className="pb-0">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-500" />
-              Activity Calendar
-            </CardTitle>
-            <CardDescription>
-              Your upcoming farming activities and events
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                <div>
+                  <CardTitle>Activity Calendar</CardTitle>
+                  <CardDescription>
+                    Your upcoming farming activities and events
+                  </CardDescription>
+                </div>
+              </div>
+              <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="flex items-center gap-1">
+                    <Plus className="h-4 w-4" />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Task</DialogTitle>
+                    <DialogDescription>
+                      Create a new farming activity or event
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="title" className="text-right">
+                        Title
+                      </Label>
+                      <Input
+                        id="title"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task title"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="description" className="text-right">
+                        Description
+                      </Label>
+                      <Textarea
+                        id="description"
+                        value={newTask.description}
+                        onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="date" className="text-right">
+                        Date
+                      </Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newTask.date}
+                        onChange={(e) => setNewTask({...newTask, date: e.target.value})}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="time" className="text-right">
+                        Time
+                      </Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={newTask.time}
+                        onChange={(e) => setNewTask({...newTask, time: e.target.value})}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="duration" className="text-right">
+                        Duration
+                      </Label>
+                      <Input
+                        id="duration"
+                        value={newTask.duration}
+                        onChange={(e) => setNewTask({...newTask, duration: e.target.value})}
+                        className="col-span-3"
+                        placeholder="e.g. 2 hours"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="icon" className="text-right">
+                        Icon
+                      </Label>
+                      <Select 
+                        value={newTask.icon} 
+                        onValueChange={(value) => setNewTask({...newTask, icon: value})}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select an icon" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CloudSun">Weather</SelectItem>
+                          <SelectItem value="Tractor">Tractor</SelectItem>
+                          <SelectItem value="Sprout">Planting</SelectItem>
+                          <SelectItem value="BarChart">Market</SelectItem>
+                          <SelectItem value="Wheat">Harvest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="status" className="text-right">
+                        Status
+                      </Label>
+                      <Input
+                        id="status"
+                        value={newTask.status}
+                        onChange={(e) => setNewTask({...newTask, status: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task status"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddTaskOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddTask}>Add Task</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="upcoming">
@@ -507,98 +823,98 @@ export default function FarmerDashboard() {
               </TabsList>
               <TabsContent value="upcoming" className="pt-4">
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3 pb-4 border-b">
-                    <div className="bg-primary/10 p-2 rounded-md text-primary">
-                      <CloudSun className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Apply fertilizer to Field A</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Tomorrow, 6:00 AM - 9:00 AM
-                      </p>
-                      <div className="text-xs mt-2 text-green-600">
-                        Weather forecast: Clear skies, ideal conditions
+                  {tasks.filter(task => task.type === 'upcoming').map((task, index) => (
+                    <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
+                      <div className="bg-primary/10 p-2 rounded-md text-primary">
+                        {getIconComponent(task.icon)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
+                        </p>
+                        <div className="text-xs mt-2 text-green-600">
+                          {task.status}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleCompleteTask(task.id)}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mark as complete</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 pb-4 border-b">
-                    <div className="bg-primary/10 p-2 rounded-md text-primary">
-                      <Tractor className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Harvest Corn (Field C)</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Mar 15, 2024, 7:00 AM - 5:00 PM
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Ready for harvest</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 pb-4 border-b">
-                    <div className="bg-primary/10 p-2 rounded-md text-primary">
-                      <Sprout className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Start planting for next season (Field B)</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Mar 20, 2024, 6:00 AM - 4:00 PM
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">Seeds ready</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3">
-                    <div className="bg-primary/10 p-2 rounded-md text-primary">
-                      <BarChart className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Local Farmers Market</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Mar 25, 2024, 8:00 AM - 2:00 PM
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Opportunity to sell direct</span>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </TabsContent>
               <TabsContent value="past" className="pt-4">
                 <div className="space-y-4">
-                  <div className="flex items-start gap-3 pb-4 border-b">
-                    <div className="bg-muted p-2 rounded-md text-muted-foreground">
-                      <Wheat className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Field A irrigation</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Mar 5, 2024, 6:00 AM - 10:00 AM
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Completed</span>
+                  {tasks.filter(task => task.type === 'past').map((task, index) => (
+                    <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
+                      <div className="bg-muted p-2 rounded-md text-muted-foreground">
+                        {getIconComponent(task.icon)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{task.status}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-3 pb-4 border-b">
-                    <div className="bg-muted p-2 rounded-md text-muted-foreground">
-                      <Tractor className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-medium">Tomato greenhouse maintenance</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Mar 2, 2024, 9:00 AM - 11:00 AM
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">Completed</span>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </TabsContent>
             </Tabs>
@@ -609,6 +925,26 @@ export default function FarmerDashboard() {
       <div className="h-[600px]">
         <GeminiChat />
       </div>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Task</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this task? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDeleteTask}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 
