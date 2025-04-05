@@ -16,7 +16,21 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth-context";
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+
+  // Determine dashboard route based on user role
+  const getDashboardRoute = () => {
+    if (!profile?.user_type) return "/dashboard";
+
+    switch (profile.user_type.toLowerCase()) {
+      case "farmer":
+        return "/dashboard/farmer";
+      case "buyer":
+        return "/dashboard/buyer";
+      default:
+        return "/dashboard";
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -42,7 +56,7 @@ export default function LandingPage() {
               </p>
               <div className="flex flex-col space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
                 {user ? (
-                  <Link href="/dashboard">
+                  <Link href={getDashboardRoute()}>
                     <Button
                       size="lg"
                       className="bg-green-600 hover:bg-green-700"
@@ -400,7 +414,7 @@ export default function LandingPage() {
             </p>
             <div className="flex flex-col justify-center space-y-4 sm:flex-row sm:space-y-0 sm:space-x-4">
               {user ? (
-                <Link href="/dashboard">
+                <Link href={getDashboardRoute()}>
                   <Button size="lg" className="bg-green-600 hover:bg-green-700">
                     Go to Dashboard
                     <ArrowRight className="w-4 h-4 ml-2" />

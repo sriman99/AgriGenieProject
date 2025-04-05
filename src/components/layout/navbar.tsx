@@ -11,7 +11,21 @@ export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
-  const { user, signOut } = useAuth();
+  const { user, signOut, profile } = useAuth();
+
+  // Determine dashboard route based on user role
+  const getDashboardRoute = () => {
+    if (!profile?.user_type) return "/dashboard";
+
+    switch (profile.user_type.toLowerCase()) {
+      case "farmer":
+        return "/dashboard/farmer";
+      case "buyer":
+        return "/dashboard/buyer";
+      default:
+        return "/dashboard";
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -65,7 +79,7 @@ export function Navbar() {
 
           {user ? (
             <div className="flex items-center space-x-4">
-              <Link href="/dashboard">
+              <Link href={getDashboardRoute()}>
                 <Button
                   variant="outline"
                   className={`border-green-600 text-green-600`}
@@ -126,7 +140,7 @@ export function Navbar() {
               {user ? (
                 <>
                   <Link
-                    href="/dashboard"
+                    href={getDashboardRoute()}
                     className="block py-2 text-lg font-medium text-gray-900 hover:text-green-600"
                   >
                     Dashboard
@@ -173,7 +187,7 @@ function NavLink({
   pathname: string;
 }) {
   const isActive = pathname === href;
-  
+
   // Determine the actual href based on current path
   const actualHref = href === "/features" && pathname === "/" ? "#features" : href;
 
@@ -214,7 +228,7 @@ function MobileNavLink({
 }) {
   const pathname = usePathname();
   const isActive = pathname === href;
-  
+
   // Determine the actual href based on current path
   const actualHref = href === "/features" && pathname === "/" ? "#features" : href;
 
