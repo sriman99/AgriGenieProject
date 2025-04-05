@@ -36,14 +36,51 @@ export default function FarmerAssess() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingTreatment, setIsGeneratingTreatment] = useState(false);
   const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setSelectedImage(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setResult(null);
+      handleFile(file);
+    }
+  };
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload an image file (JPG, PNG, JPEG)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedImage(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setResult(null);
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      handleFile(file);
     }
   };
 
@@ -237,9 +274,16 @@ export default function FarmerAssess() {
                 />
               </div>
             ) : (
-              <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
+              <div 
+                className={`border-2 border-dashed rounded-lg p-8 text-center space-y-4 transition-colors ${
+                  isDragging ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'
+                }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <div className="flex flex-col items-center gap-2">
-                  <Upload className="h-8 w-8 text-muted-foreground" />
+                  <Upload className={`h-8 w-8 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
                   <div className="text-sm text-muted-foreground">
                     <p>Drag and drop your image here, or click to select</p>
                     <p className="text-xs mt-1">Supported formats: JPG, PNG, JPEG</p>
