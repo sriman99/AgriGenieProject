@@ -219,31 +219,31 @@ export function MarketPricesWidget() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+            <div className="space-y-4">
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-4 items-end">
             <div className="flex-1 space-y-2">
               <label htmlFor="state" className="text-sm font-medium">State</label>
-              <Input
+                  <Input
                 id="state"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
                 placeholder="Enter state name"
-              />
-            </div>
+                  />
+                </div>
             <div className="flex-1 space-y-2">
               <label htmlFor="commodity" className="text-sm font-medium">Commodity</label>
-              <Input
+                  <Input
                 id="commodity"
                 value={commodity}
                 onChange={(e) => setCommodity(e.target.value)}
                 placeholder="Enter commodity name"
-              />
-            </div>
+                  />
+                </div>
             <Button type="submit" className="h-10">
               Fetch Prices
-            </Button>
-          </form>
-
+                    </Button>
+              </form>
+              
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Current Price</h3>
@@ -254,7 +254,7 @@ export function MarketPricesWidget() {
                   <span className="text-gray-400">No data</span>
                 )}
               </p>
-            </div>
+                </div>
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Price Trend</h3>
               <div className="flex items-center gap-2 mt-1">
@@ -278,8 +278,8 @@ export function MarketPricesWidget() {
                   </>
                 ) : (
                   <span className="text-gray-400">No data</span>
-                )}
-              </div>
+                  )}
+                </div>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <h3 className="text-sm font-medium text-blue-900">Predicted Price</h3>
@@ -380,17 +380,17 @@ export function MarketPricesWidget() {
                         })}
                       </tbody>
                     </table>
-                  </div>
+                </div>
                 </div>
               </TabsContent>
               
               {/* Market Insights */}
               <TabsContent value="insights" className="mt-4">
-                <div className="bg-muted/30 rounded-lg p-4">
-                  <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-blue-600" />
+                  <div className="bg-muted/30 rounded-lg p-4">
+                    <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-blue-600" />
                     Market Insights
-                  </h4>
+                    </h4>
                   {cropData.length > 0 ? (
                     <div className="space-y-2">
                       <p className="text-sm text-muted-foreground">
@@ -453,8 +453,8 @@ export function MarketPricesWidget() {
                 </div>
               </TabsContent>
             </Tabs>
-          )}
-        </div>
+              )}
+            </div>
       </CardContent>
     </Card>
   );
