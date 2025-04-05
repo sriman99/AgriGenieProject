@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,15 +10,27 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, profile } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (user && profile) {
+      if (profile.user_type === "farmer") {
+        router.push("/dashboard/farmer");
+      } else if (profile.user_type === "buyer") {
+        router.push("/dashboard/buyer");
+      } else {
+        router.push("/dashboard");
+      }
+    }
+  }, [user, profile, router]);
 
   const [formData, setFormData] = useState({
     email: "",
@@ -29,26 +41,16 @@ export default function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loading) return; // Prevent multiple submissions while loading
+    if (loading) return;
     setLoading(true);
-    
+
     try {
       if (isLogin) {
-        const userType = await signIn(formData.email, formData.password);
+        await signIn(formData.email, formData.password);
         toast.success("Successfully logged in!");
-        
-        // Redirect based on user type
-        if (userType === 'farmer') {
-          router.push("/dashboard/farmer");
-        } else if (userType === 'buyer') {
-          router.push("/dashboard/buyer");
-        } else {
-          // Default fallback
-          router.push("/dashboard");
-        }
       } else {
         // Validate input before attempting signup
-        if (!formData.email.includes('@')) {
+        if (!formData.email.includes("@")) {
           throw new Error("Please enter a valid email address");
         }
 
@@ -73,11 +75,14 @@ export default function AuthPage() {
             email: "",
             password: "",
             fullName: "",
-            userType: "farmer"
+            userType: "farmer",
           });
           setIsLogin(true); // Switch to login view
         } catch (signupError: any) {
-          if (signupError.message.includes('rate limit') || signupError.message.includes('wait')) {
+          if (
+            signupError.message.includes("rate limit") ||
+            signupError.message.includes("wait")
+          ) {
             // Show rate limit error with countdown
             toast.error(signupError.message, {
               duration: 5000,
@@ -161,7 +166,9 @@ export default function AuthPage() {
                 <div className="flex gap-4">
                   <Button
                     type="button"
-                    variant={formData.userType === "farmer" ? "default" : "outline"}
+                    variant={
+                      formData.userType === "farmer" ? "default" : "outline"
+                    }
                     className="flex-1"
                     onClick={() =>
                       setFormData({ ...formData, userType: "farmer" })
@@ -172,9 +179,13 @@ export default function AuthPage() {
                   </Button>
                   <Button
                     type="button"
-                    variant={formData.userType === "buyer" ? "default" : "outline"}
+                    variant={
+                      formData.userType === "buyer" ? "default" : "outline"
+                    }
                     className="flex-1"
-                    onClick={() => setFormData({ ...formData, userType: "buyer" })}
+                    onClick={() =>
+                      setFormData({ ...formData, userType: "buyer" })
+                    }
                     disabled={loading}
                   >
                     🛒 Buyer
@@ -183,11 +194,11 @@ export default function AuthPage() {
               </div>
             )}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading 
-                ? "Please wait..." 
-                : isLogin 
-                  ? "Sign In" 
-                  : "Create Account"}
+              {loading
+                ? "Please wait..."
+                : isLogin
+                ? "Sign In"
+                : "Create Account"}
             </Button>
             <Button
               type="button"
@@ -200,7 +211,7 @@ export default function AuthPage() {
                     email: "",
                     password: "",
                     fullName: "",
-                    userType: "farmer"
+                    userType: "farmer",
                   });
                 }
               }}
