@@ -18,6 +18,7 @@ import {
 } from '@/lib/weather-api';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
+import ReactMarkdown from 'react-markdown';
 
 export function WeatherWidget() {
   const [location, setLocation] = useState<string>('Delhi');
@@ -474,8 +475,8 @@ export function WeatherWidget() {
                     <p className="text-sm text-muted-foreground mb-3">
                       Based on current and forecasted weather conditions for {weather?.name}
                     </p>
-                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 whitespace-pre-wrap">
-                      {aiAdvisory}
+                    <div className="bg-green-50 p-4 rounded-lg border border-green-200 prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown>{aiAdvisory}</ReactMarkdown>
                     </div>
                     <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
                       <AlertTriangle className="h-3 w-3" />

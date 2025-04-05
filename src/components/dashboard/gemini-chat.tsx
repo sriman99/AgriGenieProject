@@ -25,6 +25,7 @@ import {
   farmingChatbotResponse
 } from '@/lib/gemini';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import ReactMarkdown from 'react-markdown';
 
 type Message = {
   id: string;
@@ -358,7 +359,9 @@ export function GeminiChat() {
                           : 'bg-muted text-muted-foreground'
                       }`}
                     >
-                      <div className="whitespace-pre-wrap">{message.content}</div>
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      </div>
                       <div className="text-xs mt-1 opacity-70">
                         {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
@@ -463,8 +466,8 @@ export function GeminiChat() {
                     <Leaf className="h-4 w-4 text-green-600" />
                     Recommendation
                   </h4>
-                  <div className="whitespace-pre-wrap text-sm">
-                    {recommendation}
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{recommendation}</ReactMarkdown>
                   </div>
                   
                   <div className="mt-3 flex gap-2">
@@ -532,8 +535,8 @@ export function GeminiChat() {
                     <BarChart4 className="h-4 w-4 text-blue-600" />
                     Market Analysis
                   </h4>
-                  <div className="whitespace-pre-wrap text-sm">
-                    {marketInsight}
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{marketInsight}</ReactMarkdown>
                   </div>
                   
                   <div className="mt-3 flex gap-2">
@@ -622,8 +625,8 @@ export function GeminiChat() {
                     <Leaf className="h-4 w-4 text-red-600" />
                     Diagnosis Result
                   </h4>
-                  <div className="whitespace-pre-wrap text-sm">
-                    {diagnosisResult}
+                  <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <ReactMarkdown>{diagnosisResult}</ReactMarkdown>
                   </div>
                   
                   <div className="mt-3 flex gap-2">
