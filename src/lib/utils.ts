@@ -271,3 +271,10 @@ export function timeElapsed(dateString: string): string {
   const yearsDiff = Math.floor(monthsDiff / 12);
   return `${yearsDiff} year${yearsDiff !== 1 ? 's' : ''} ago`;
 }
+
+export function formatPrice(price: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(price)
+}
