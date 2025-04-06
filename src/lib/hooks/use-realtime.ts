@@ -24,7 +24,7 @@ export function useRealtime() {
         setIsConnected(true);
         setError(null);
         // Subscribe to updates
-        api.post('/realtime/subscribe', { user_id: user.id });
+        api.subscribeToUpdates(user.id);
       };
 
       ws.current.onclose = () => {

@@ -1,22 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@supabase/supabase-js';
 
-export async function PUT(
-  request: Request,
-  { params }: { params: { method_id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
-    const methodId = params.method_id;
+    const methodId = request.nextUrl.pathname.split('/').slice(-2)[0];
     const cookieStore = cookies();
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey, {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
+      auth: {
+        persistSession: false
+      }
     });
 
     const { data: { session } } = await supabase.auth.getSession();

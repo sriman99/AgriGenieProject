@@ -78,7 +78,7 @@ export async function refreshAuthToken() {
     }
     
     // Check if the token is about to expire (within 5 minutes)
-    const expiresAt = session.expires_at * 1000;
+    const expiresAt = (session.expires_at || 0) * 1000;
     const now = Date.now();
     const fiveMinutes = 5 * 60 * 1000;
     

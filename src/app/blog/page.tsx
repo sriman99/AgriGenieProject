@@ -100,9 +100,21 @@ const initialBlogPosts = [
   },
 ];
 
+interface BlogPost {
+  id: number;
+  title: string;
+  excerpt: string;
+  content: string;
+  image: string;
+  author: string;
+  date: string;
+  readTime: string;
+  category: string;
+}
+
 export default function BlogPage() {
-  const [blogPosts, setBlogPosts] = useState(initialBlogPosts);
-  const [selectedPost, setSelectedPost] = useState(null);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>(initialBlogPosts);
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
   const [newBlog, setNewBlog] = useState({
     title: "",
     excerpt: "",

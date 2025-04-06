@@ -27,9 +27,24 @@ export function PaymentMethods() {
   const [methods, setMethods] = useState<PaymentMethod[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [newMethod, setNewMethod] = useState<Partial<PaymentMethod>>({
+  const [newMethod, setNewMethod] = useState<{
+    type: string;
+    details: {
+      card_number: string;
+      expiry: string;
+      upi_id: string;
+      account_number: string;
+      bank_name: string;
+    };
+  }>({
     type: 'card',
-    details: {},
+    details: {
+      card_number: '',
+      expiry: '',
+      upi_id: '',
+      account_number: '',
+      bank_name: '',
+    },
   });
   const { toast } = useToast();
 
@@ -73,7 +88,7 @@ export function PaymentMethods() {
       });
 
       // Reset form and refresh methods
-      setNewMethod({ type: 'card', details: {} });
+      setNewMethod({ type: 'card', details: { card_number: '', expiry: '', upi_id: '', account_number: '', bank_name: '' } });
       fetchPaymentMethods();
     } catch (error) {
       toast({

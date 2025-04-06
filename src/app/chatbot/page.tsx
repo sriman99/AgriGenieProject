@@ -1,17 +1,29 @@
+'use client';
+
 import { Chatbot } from "@/components/ai/chatbot";
-import { Toaster } from "@/components/ui/toaster";
+import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export default function ChatbotPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <div className="container mx-auto py-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">AI Farming Assistant</h1>
-        <p className="text-muted-foreground mb-8">
-          Get instant farming advice, crop recommendations, and weather-based guidance from our AI assistant.
-        </p>
+    <main className="min-h-screen p-4 bg-gray-50">
+      <div className="max-w-7xl mx-auto space-y-6">
         <Chatbot />
       </div>
-      <Toaster />
-    </div>
+    </main>
   );
 }

@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     }, {});
 
     // Calculate average price for each market
-    const priceComparison = Object.entries(marketPrices).map(([market, data]) => ({
+    const priceComparison = Object.entries(marketPrices as Record<string, { total: number; count: number }>).map(([market, data]) => ({
       market,
       price: parseFloat((data.total / data.count).toFixed(2))
     }));

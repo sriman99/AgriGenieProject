@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth-context";
 import { api } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { agriToasts } from "@/components/ui/toast";
+import { agriToasts } from "@/components/ui/agri-toast";
 
 interface PriceData {
   date: string;
@@ -227,3 +227,4 @@ export default function PriceAnalysisPage() {
       </div>
     </main>
   );
+}

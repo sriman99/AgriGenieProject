@@ -171,7 +171,7 @@ export async function GET(request: Request) {
     }));
 
     // Sort the data by date to ensure chronological order
-    historicalPrices.sort((a, b) => {
+    historicalPrices.sort((a: { date: string }, b: { date: string }) => {
       const [dayA, monthA, yearA] = a.date.split('/');
       const [dayB, monthB, yearB] = b.date.split('/');
       const dateA = new Date(parseInt(yearA), parseInt(monthA) - 1, parseInt(dayA));

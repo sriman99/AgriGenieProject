@@ -10,7 +10,9 @@ const nextConfig = {
     ],
   },
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ['localhost:3000'],
+    },
   },
   transpilePackages: ['@supabase/node-fetch', 'node-fetch'],
   
@@ -26,4 +28,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig; 
+export default nextConfig; 

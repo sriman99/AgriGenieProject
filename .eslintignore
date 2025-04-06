@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+public
+*.config.js
+*.setup.js
+*.test.js
+*.spec.js
+*.stories.tsx
+*.d.ts
+src/app/api/**/*
+src/lib/**/*
+src/components/**/* 
