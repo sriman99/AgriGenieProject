@@ -89,8 +89,6 @@ export function MarketPricesWidget() {
     setError(null);
     
     try {
-      console.log('Fetching data for:', { state, commodity });
-      
       // Try to fetch real data first
       const response = await fetch(`/api/fetch-crop-data?state=${encodeURIComponent(state)}&commodity=${encodeURIComponent(commodity)}`);
       
@@ -99,11 +97,9 @@ export function MarketPricesWidget() {
       }
       
       const data = await response.json();
-      console.log('API response:', data);
       
       if (!data.data || data.data.length === 0) {
         // If no data is available, try to fetch mock data
-        console.log('No data available, trying mock data');
         const mockResponse = await fetch(`/api/fetch-crop-data?state=${encodeURIComponent(state)}&commodity=${encodeURIComponent(commodity)}&mock=true`);
         
         if (!mockResponse.ok) {
@@ -111,7 +107,6 @@ export function MarketPricesWidget() {
         }
         
         const mockData = await mockResponse.json();
-        console.log('Mock data response:', mockData);
         
         if (!mockData.data || mockData.data.length === 0) {
           throw new Error('No data available for the selected parameters');

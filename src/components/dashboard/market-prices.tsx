@@ -70,7 +70,6 @@ export function MarketPrices() {
       
       // If no data is available, try with mock data
       if (!data.data || data.data.length === 0) {
-        console.log('No data available, trying with mock data');
         response = await fetch(
           `/api/fetch-crop-data/?state=${encodeURIComponent(state)}&commodity=${encodeURIComponent(commodity)}&mock=true`
         );

@@ -707,15 +707,135 @@ export default function FarmerDashboard() {
         </Card>
         
           {/* Activity Calendar */}
-          <Card>
-            <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-blue-500" />
-              Activity Calendar
-            </CardTitle>
-            <CardDescription>
-              Your upcoming farming activities and events
-            </CardDescription>
+          <Card className="lg:col-span-2">
+          <CardHeader className="pb-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                <div>
+                  <CardTitle>Activity Calendar</CardTitle>
+                  <CardDescription>
+                    Your upcoming farming activities and events
+                  </CardDescription>
+                </div>
+              </div>
+              <Dialog open={isAddTaskOpen} onOpenChange={setIsAddTaskOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="flex items-center gap-1">
+                    <Plus className="h-4 w-4" />
+                    Add Task
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[500px]">
+                  <DialogHeader>
+                    <DialogTitle>Add New Task</DialogTitle>
+                    <DialogDescription>
+                      Create a new farming activity or event
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="title" className="text-right">
+                        Title
+                      </Label>
+                      <Input
+                        id="title"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task title"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="description" className="text-right">
+                        Description
+                      </Label>
+                      <Textarea
+                        id="description"
+                        value={newTask.description}
+                        onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task description"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="date" className="text-right">
+                        Date
+                      </Label>
+                      <Input
+                        id="date"
+                        type="date"
+                        value={newTask.date}
+                        onChange={(e) => setNewTask({...newTask, date: e.target.value})}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="time" className="text-right">
+                        Time
+                      </Label>
+                      <Input
+                        id="time"
+                        type="time"
+                        value={newTask.time}
+                        onChange={(e) => setNewTask({...newTask, time: e.target.value})}
+                        className="col-span-3"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="duration" className="text-right">
+                        Duration
+                      </Label>
+                      <Input
+                        id="duration"
+                        value={newTask.duration}
+                        onChange={(e) => setNewTask({...newTask, duration: e.target.value})}
+                        className="col-span-3"
+                        placeholder="e.g. 2 hours"
+                      />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="icon" className="text-right">
+                        Icon
+                      </Label>
+                      <Select 
+                        value={newTask.icon} 
+                        onValueChange={(value) => setNewTask({...newTask, icon: value})}
+                      >
+                        <SelectTrigger className="col-span-3">
+                          <SelectValue placeholder="Select an icon" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CloudSun">Weather</SelectItem>
+                          <SelectItem value="Tractor">Tractor</SelectItem>
+                          <SelectItem value="Sprout">Planting</SelectItem>
+                          <SelectItem value="BarChart">Market</SelectItem>
+                          <SelectItem value="Wheat">Harvest</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <Label htmlFor="status" className="text-right">
+                        Status
+                      </Label>
+                      <Input
+                        id="status"
+                        value={newTask.status}
+                        onChange={(e) => setNewTask({...newTask, status: e.target.value})}
+                        className="col-span-3"
+                        placeholder="Task status"
+                      />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsAddTaskOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleAddTask}>Add Task</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="upcoming">
@@ -725,98 +845,98 @@ export default function FarmerDashboard() {
               </TabsList>
               <TabsContent value="upcoming" className="pt-4">
                 <div className="space-y-4">
-                    {tasks.filter(task => task.type === 'upcoming').map((task, index) => (
-                      <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
-                    <div className="bg-primary/10 p-2 rounded-md text-primary">
-                          {getIconComponent(task.icon)}
-                    </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium">{task.title}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
-                      </p>
-                      <div className="text-xs mt-2 text-green-600">
-                            {task.status}
+                  {tasks.filter(task => task.type === 'upcoming').map((task, index) => (
+                    <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
+                      <div className="bg-primary/10 p-2 rounded-md text-primary">
+                        {getIconComponent(task.icon)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
+                        </p>
+                        <div className="text-xs mt-2 text-green-600">
+                          {task.status}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleCompleteTask(task.id)}
+                              >
+                                <CheckCircle2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Mark as complete</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                        
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                  onClick={() => handleCompleteTask(task.id)}
-                                >
-                                  <CheckCircle2 className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Mark as complete</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleDeleteTask(task.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Delete task</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                    </div>
-                      </div>
-                    ))}
+                  ))}
                 </div>
               </TabsContent>
               <TabsContent value="past" className="pt-4">
                 <div className="space-y-4">
-                    {tasks.filter(task => task.type === 'past').map((task, index) => (
-                      <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
-                    <div className="bg-muted p-2 rounded-md text-muted-foreground">
-                          {getIconComponent(task.icon)}
-                    </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-medium">{task.title}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                            <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{task.status}</span>
+                  {tasks.filter(task => task.type === 'past').map((task, index) => (
+                    <div key={task.id} className="flex items-start gap-3 pb-4 border-b group">
+                      <div className="bg-muted p-2 rounded-md text-muted-foreground">
+                        {getIconComponent(task.icon)}
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {new Date(task.date).toLocaleDateString()}, {task.time} - {task.duration}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2">
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">{task.status}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete task</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
-                        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                  onClick={() => handleDeleteTask(task.id)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Delete task</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                    </div>
-                      </div>
-                    ))}
+                  ))}
                 </div>
               </TabsContent>
             </Tabs>

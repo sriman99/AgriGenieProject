@@ -106,140 +106,39 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Build the API URL with parameters
-    const params = new URLSearchParams({
-      'api-key': API_KEY,
-      'format': 'json',
-      'filters[state.keyword]': state,
-      'filters[commodity]': commodity,
-      'limit': '100' // Increase limit to get more historical data
-    });
+    const url = new URL('https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070');
+    url.searchParams.append('api-key', process.env.DATA_GOV_IN_API_KEY || '');
+    url.searchParams.append('format', 'json');
+    url.searchParams.append('filters[state.keyword]', state);
+    url.searchParams.append('filters[commodity]', commodity);
+    url.searchParams.append('limit', '100');
 
-    const url = `${BASE_URL}?${params.toString()}`;
-    console.log('Fetching from URL:', url);
-    
-    // Set a timeout for the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(url, { 
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
-    clearTimeout(timeoutId);
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('API error response:', errorText);
-      
-      // If API fails, fall back to mock data
-      console.log('Falling back to mock data');
-      const mockData = generateMockData(state, commodity);
-      return NextResponse.json({
-        data: mockData,
-        predictedPrice: Math.round(mockData[mockData.length - 1].modalPrice * 1.05), // 5% increase prediction
-        message: 'Using mock data due to API failure'
-      });
-    }
-
+    const response = await fetch(url.toString());
     const data = await response.json();
-    
-    // Process the data to get historical prices
-    const records = data.records || [];
-    
-    if (records.length === 0) {
-      // If no data found, fall back to mock data
-      console.log('No data found, falling back to mock data');
-      const mockData = generateMockData(state, commodity);
-      return NextResponse.json({
-        data: mockData,
-        predictedPrice: Math.round(mockData[mockData.length - 1].modalPrice * 1.05), // 5% increase prediction
-        message: 'Using mock data due to no data found'
-      });
-    }
-    
-    const historicalPrices = records.map((record: any) => ({
-      date: record.arrival_date,
-      minPrice: parseFloat(record.min_price) || 0,
-      maxPrice: parseFloat(record.max_price) || 0,
-      modalPrice: parseFloat(record.modal_price) || 0,
-      district: record.district || '',
-      market: record.market || ''
-    }));
 
-    // Sort the data by date to ensure chronological order
-    historicalPrices.sort((a: { date: string }, b: { date: string }) => {
-      const [dayA, monthA, yearA] = a.date.split('/');
-      const [dayB, monthB, yearB] = b.date.split('/');
-      const dateA = new Date(parseInt(yearA), parseInt(monthA) - 1, parseInt(dayA));
-      const dateB = new Date(parseInt(yearB), parseInt(monthB) - 1, parseInt(dayB));
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    // If we have fewer than 7 days of data, generate additional mock data to fill the gap
-    if (historicalPrices.length < 7) {
-      console.log('Less than 7 days of data, generating additional mock data');
+    if (!data.records || data.records.length === 0) {
+      // Generate mock data if no real data is available
       const mockData = generateMockData(state, commodity);
-      
-      // Merge the real data with mock data, ensuring we have at least 7 days
-      const mergedData = [...historicalPrices];
-      
-      // Add mock data for missing days
-      for (let i = 0; i < 7 - historicalPrices.length; i++) {
-        // Use the last date from historical prices as a reference
-        const lastDate = historicalPrices[historicalPrices.length - 1].date;
-        const [day, month, year] = lastDate.split('/');
-        const lastDateObj = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        
-        // Create a new date for the mock data
-        const newDate = new Date(lastDateObj);
-        newDate.setDate(lastDateObj.getDate() - (i + 1));
-        
-        const newDay = newDate.getDate().toString().padStart(2, '0');
-        const newMonth = (newDate.getMonth() + 1).toString().padStart(2, '0');
-        const newYear = newDate.getFullYear();
-        
-        // Add the mock data with the new date
-        mergedData.unshift({
-          date: `${newDay}/${newMonth}/${newYear}`,
-          minPrice: mockData[i].minPrice,
-          maxPrice: mockData[i].maxPrice,
-          modalPrice: mockData[i].modalPrice,
-          district: mockData[i].district,
-          market: mockData[i].market
-        });
-      }
-      
-      // Update historicalPrices with the merged data
-      historicalPrices.length = 0;
-      historicalPrices.push(...mergedData);
+      return NextResponse.json(mockData);
     }
 
-    // Calculate predicted price (simple moving average of last 5 days)
-    let predictedPrice = null;
-    if (historicalPrices.length >= 5) {
-      const last5Days = historicalPrices.slice(-5);
-      const avgPrice = last5Days.reduce((sum: number, day: any) => sum + day.modalPrice, 0) / 5;
-      predictedPrice = Math.round(avgPrice * 1.05); // 5% increase prediction
+    // Process the real data
+    const processedData = processApiData(data.records);
+    
+    if (processedData.length < 7) {
+      // If we have less than 7 days of data, generate additional mock data
+      const additionalMockData = generateAdditionalMockData(processedData, state, commodity);
+      return NextResponse.json(additionalMockData);
     }
 
     return NextResponse.json({
-      data: historicalPrices,
-      predictedPrice
+      data: processedData,
+      predictedPrice: predictPrice(processedData)
     });
+
   } catch (error) {
-    console.error('Error fetching crop data:', error);
-    
     // If there's an error, fall back to mock data
-    console.log('Error occurred, falling back to mock data');
     const mockData = generateMockData(state, commodity);
-    return NextResponse.json({
-      data: mockData,
-      predictedPrice: Math.round(mockData[mockData.length - 1].modalPrice * 1.05), // 5% increase prediction
-      message: 'Using mock data due to error'
-    });
+    return NextResponse.json(mockData);
   }
 } 
