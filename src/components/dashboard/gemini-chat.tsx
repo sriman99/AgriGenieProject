@@ -330,15 +330,15 @@ export function GeminiChat() {
       )}
       
       <Tabs defaultValue="chat" value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-        <TabsList className="mx-6">
-          <TabsTrigger value="chat" className="flex-1">Chat</TabsTrigger>
-          <TabsTrigger value="farming" className="flex-1">Farming Advice</TabsTrigger>
-          <TabsTrigger value="market" className="flex-1">Market Insights</TabsTrigger>
-          <TabsTrigger value="disease" className="flex-1">Disease Diagnosis</TabsTrigger>
+        <TabsList className="mx-6 overflow-x-auto flex-nowrap">
+          <TabsTrigger value="chat" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Chat</TabsTrigger>
+          <TabsTrigger value="farming" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Farming</TabsTrigger>
+          <TabsTrigger value="market" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Market</TabsTrigger>
+          <TabsTrigger value="disease" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Disease</TabsTrigger>
         </TabsList>
         
         {/* Chat Tab */}
-        <TabsContent value="chat" className="flex-1 flex flex-col px-6 data-[state=active]:flex-1">
+        <TabsContent value="chat" className="flex-1 flex flex-col px-4 sm:px-6 data-[state=active]:flex-1">
           <ScrollArea className="flex-1">
             <div className="space-y-4 p-2">
               {messages.map((message) => (
@@ -346,7 +346,7 @@ export function GeminiChat() {
                   key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex gap-2 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <div className={`flex gap-2 max-w-[90%] sm:max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                     <Avatar className={message.role === 'user' ? 'bg-primary' : 'bg-green-600'}>
                       <AvatarFallback>
                         {message.role === 'user' ? user?.email?.charAt(0).toUpperCase() || 'U' : 'AI'}
@@ -372,7 +372,7 @@ export function GeminiChat() {
               
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="flex gap-2 max-w-[80%]">
+                  <div className="flex gap-2 max-w-[90%] sm:max-w-[80%]">
                     <Avatar className="bg-green-600">
                       <AvatarFallback>AI</AvatarFallback>
                     </Avatar>
@@ -427,7 +427,7 @@ export function GeminiChat() {
         </TabsContent>
         
         {/* Farming Advice Tab */}
-        <TabsContent value="farming" className="px-6 data-[state=active]:flex-1 flex flex-col">
+        <TabsContent value="farming" className="px-4 sm:px-6 data-[state=active]:flex-1 flex flex-col">
           <ScrollArea className="flex-1">
             <div className="space-y-4 p-2">
               <div className="bg-muted p-4 rounded-lg">
@@ -496,7 +496,7 @@ export function GeminiChat() {
         </TabsContent>
         
         {/* Market Insights Tab */}
-        <TabsContent value="market" className="px-6 data-[state=active]:flex-1 flex flex-col">
+        <TabsContent value="market" className="px-4 sm:px-6 data-[state=active]:flex-1 flex flex-col">
           <ScrollArea className="flex-1">
             <div className="space-y-4 p-2">
               <div className="bg-muted p-4 rounded-lg">
@@ -565,7 +565,7 @@ export function GeminiChat() {
         </TabsContent>
         
         {/* Disease Diagnosis Tab */}
-        <TabsContent value="disease" className="px-6 data-[state=active]:flex-1 flex flex-col">
+        <TabsContent value="disease" className="px-4 sm:px-6 data-[state=active]:flex-1 flex flex-col">
           <ScrollArea className="flex-1">
             <div className="space-y-4 p-2">
               <div className="bg-muted p-4 rounded-lg">

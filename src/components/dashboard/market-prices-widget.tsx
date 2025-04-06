@@ -239,7 +239,7 @@ export function MarketPricesWidget() {
                     </Button>
               </form>
               
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             <div className="bg-white p-4 rounded-lg border">
               <h3 className="text-sm font-medium text-gray-500">Current Price</h3>
               <p className="text-2xl font-bold mt-1">
@@ -291,40 +291,42 @@ export function MarketPricesWidget() {
           {/* Navigation Tabs */}
           {cropData.length > 0 && (
             <Tabs defaultValue="trend" value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="w-full">
-                <TabsTrigger value="trend" className="flex-1">Price Trend</TabsTrigger>
-                <TabsTrigger value="table" className="flex-1">Price Table</TabsTrigger>
-                <TabsTrigger value="insights" className="flex-1">Market Insights</TabsTrigger>
+              <TabsList className="w-full overflow-x-auto flex-nowrap">
+                <TabsTrigger value="trend" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Price Trend</TabsTrigger>
+                <TabsTrigger value="table" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Price Table</TabsTrigger>
+                <TabsTrigger value="insights" className="flex-1 whitespace-nowrap text-xs sm:text-sm">Market Insights</TabsTrigger>
               </TabsList>
 
               {/* Price Trend Chart */}
               <TabsContent value="trend" className="mt-4">
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsLineChart data={cropData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis 
-                        dataKey="last_updated" 
-                        tickFormatter={formatDate}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12 }} 
-                        tickFormatter={(value) => `₹${value.toLocaleString('en-IN')}`}
-                      />
-                      <Tooltip 
-                        formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, '']}
-                        labelFormatter={formatDate}
-                      />
-                      <Line 
-                        type="monotone" 
-                        dataKey="price_per_kg" 
-                        stroke="#8884d8" 
-                        name="Price"
-                        strokeWidth={2}
-                      />
-                    </RechartsLineChart>
-                  </ResponsiveContainer>
+                <div className="h-[300px] overflow-x-auto">
+                  <div className="min-w-[600px] h-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={cropData}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="last_updated" 
+                          tickFormatter={formatDate}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12 }} 
+                          tickFormatter={(value) => `₹${value.toLocaleString('en-IN')}`}
+                        />
+                        <Tooltip 
+                          formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, '']}
+                          labelFormatter={formatDate}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="price_per_kg" 
+                          stroke="#8884d8" 
+                          name="Price"
+                          strokeWidth={2}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
               </TabsContent>
               
