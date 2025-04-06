@@ -197,7 +197,7 @@ The application can be deployed to Vercel or any other platform that supports Ne
 
 ```bash
 npm run build
-npm start
+npm run dev
 ```
 
 ## Future Enhancements
